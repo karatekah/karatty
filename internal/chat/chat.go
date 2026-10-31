@@ -172,9 +172,20 @@ func (s *Service) Direct(ctx context.Context, token, username string) (protocol.
 	}
 	pair := a + ":" + b
 	c = protocol.Conversation{ID: security.ID(), Name: username, Kind: "direct"}
+	createdID := c.ID
 	err = tx.QueryRow(ctx, `INSERT INTO conversations(id,name,kind,direct_pair) VALUES($1,$2,'direct',$3) ON CONFLICT(direct_pair) DO UPDATE SET direct_pair=excluded.direct_pair RETURNING id,name,kind`, c.ID, "dm-"+strings.Join([]string{a[:6], b[:6]}, "-"), pair).Scan(&c.ID, &c.Name, &c.Kind)
 	if err != nil {
 		return c, err
+	}
+	if c.ID != createdID {
+		// Reopening an existing direct must never restore revoked membership.
+		if err = member(ctx, tx, uid, c.ID); err != nil {
+			return c, err
+		}
+		if err = member(ctx, tx, peer, c.ID); err != nil {
+			return c, err
+		}
+		return c, tx.Commit(ctx)
 	}
 	_, err = tx.Exec(ctx, "INSERT INTO memberships(conversation_id,user_id) VALUES($1,$2),($1,$3) ON CONFLICT DO NOTHING", c.ID, uid, peer)
 	if err != nil {
