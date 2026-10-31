@@ -1,0 +1,106 @@
+# Entorno local
+
+Requisitos: Go 1.27.3, PostgreSQL 17.11 (o Docker con Compose) y cliente OpenSSH. Compila sin CGo. Las dependencias exactas están en go.mod/go.sum. No se instala ni se publica un servidor remoto.
+
+## Windows / PowerShell
+
+Desde la raíz del repositorio:
+
+```powershell
+$env:TERMLINK_DB_PASSWORD = 'termlink-local-development-only'
+docker compose -f deployments/compose.yml up -d db
+$env:DATABASE_URL = "postgres://termlink:$env:TERMLINK_DB_PASSWORD@127.0.0.1:5432/termlink?sslmode=disable"
+New-Item -ItemType Directory -Force bin,.local | Out-Null
+go build -o bin/server.exe ./cmd/server
+go build -o bin/ssh-gateway.exe ./cmd/ssh-gateway
+go build -o bin/termlink.exe ./cmd/termlink
+go run ./scripts/devcert.go
+./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
+```
+
+El servidor aplica la migración inicial al arrancar. En otra PowerShell con el mismo DATABASE_URL:
+
+```powershell
+$channel = ./bin/server.exe --channel general
+$inviteAlice = ./bin/server.exe --invite --conversation $channel --uses 1 --ttl 24h
+$inviteBob = ./bin/server.exe --invite --conversation $channel --uses 1 --ttl 24h
+$inviteEve = ./bin/server.exe --invite --uses 1 --ttl 24h
+ssh-keygen -t ed25519 -f .local/alice
+ssh-keygen -t ed25519 -f .local/bob
+ssh-keygen -t ed25519 -f .local/eve
+$inviteAlice | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
+$inviteBob | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob --username bob --invitation-stdin
+$inviteEve | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/eve --username eve --invitation-stdin
+./bin/termlink.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+```
+
+Las frases de claves cifradas se piden de forma oculta. Los permisos de Windows deben permitir acceso a las claves solo a su propietario; no se cambian ACL globales. Las invitaciones se pasan mediante variables/entrada estándar para no introducirlas literalmente en el historial de comandos. No compartirlas en logs.
+
+En otra terminal, Bob entra por SSH:
+
+```powershell
+ssh-keygen -lf .local/ssh/ssh_host_ed25519.pub
+ssh -t -p 2222 -i .local/bob chat@127.0.0.1
+```
+
+Compara la huella mostrada por SSH con la del host local antes de aceptarla. Conserva la clave de host entre reinicios. No desactives su verificación. `Ctrl+C` sale; `Tab` cambia de conversación; `PgUp/PgDn` desplaza el historial conservado en pantalla; `Ctrl+R` reintenta un envío sin confirmar con el mismo ID; `Esc` lo devuelve a edición; `Ctrl+L` vuelve a cargar conversaciones y sincroniza desde secuencia cero.
+
+El cliente conserva como máximo 500 mensajes en pantalla; el historial completo se consulta por páginas:
+
+```powershell
+./bin/termlink.exe history --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
+ssh -p 2222 -i .local/eve chat@127.0.0.1 history $channel 0
+```
+
+El primero devuelve hasta 100 mensajes y `next`; úsalo como `--after` para la siguiente página. Eve recibe rechazo porque su invitación no da membresía al canal. Eve tampoco puede enviar ni suscribirse a sus eventos. La suite automatizada verifica los tres casos.
+
+Crear un chat directo: `termlink direct --peer bob` con los mismos flags de conexión. Ambos participantes lo ven al recargar conversaciones. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
+
+## Linux y macOS
+
+Mismos comandos Go, Docker y SSH. Usa `export` y ejecutables sin `.exe`:
+
+```sh
+export TERMLINK_DB_PASSWORD=termlink-local-development-only
+export DATABASE_URL="postgres://termlink:$TERMLINK_DB_PASSWORD@127.0.0.1:5432/termlink?sslmode=disable"
+docker compose -f deployments/compose.yml up -d db
+mkdir -p bin .local
+go build -o bin/server ./cmd/server
+go build -o bin/termlink ./cmd/termlink
+go run ./scripts/devcert.go
+bin/server --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
+# En otra terminal con DATABASE_URL:
+channel=$(bin/server --channel general)
+invite=$(bin/server --invite --conversation "$channel" --uses 1)
+ssh-keygen -t ed25519 -f .local/alice
+printf '%s' "$invite" | bin/termlink register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
+bin/termlink chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+```
+
+Las claves Unix se crean con modo 0600 dentro de directorios 0700. Si se copian de otra máquina, revisa propietario y permisos. La CA de desarrollo solo se confía en este cliente mediante `--ca-cert`; no se añade al almacén global. Caduca a los 30 días. La CA privada no se guarda. Para renovarla, mueve la carpeta TLS antigua a una copia privada y vuelve a generar certificados.
+
+## Aplicación completa en Docker
+
+Genera antes los certificados con `go run ./scripts/devcert.go`. En Linux/macOS exporta `TERMLINK_UID=$(id -u)` y `TERMLINK_GID=$(id -g)` para que el contenedor pueda leer los archivos privados de desarrollo. Windows usa los valores predeterminados de Compose. Después:
+
+```sh
+docker compose -f deployments/compose.yml --profile app up -d --build
+docker compose -f deployments/compose.yml exec app /server --channel general
+```
+
+API TLS en 127.0.0.1:8443, SSH en 127.0.0.1:2222. El contenedor y los procesos nativos comparten el mismo esquema y reglas; elige uno para evitar colisiones de puertos. Las claves SSH del host persisten en `.local/ssh`; la base en un volumen. `docker compose -f deployments/compose.yml down` detiene el entorno conservando sus datos. No uses `down -v` si quieres conservar el historial. Para iniciar solo el gateway por separado: `go run ./cmd/ssh-gateway --host-key .local/ssh/ssh_host_ed25519`.
+
+## Verificación y administración
+
+```powershell
+$env:TERMLINK_TEST_DATABASE_URL = $env:DATABASE_URL
+./scripts/check.ps1
+# Linux/macOS: export TERMLINK_TEST_DATABASE_URL="$DATABASE_URL"
+# go mod verify; go vet ./...; go test -race -count=1 ./...; go build ./cmd/...
+```
+
+Las pruebas crean y eliminan un esquema aleatorio dentro de la base indicada. Utiliza una base local de desarrollo con permiso CREATE SCHEMA. No apuntes a datos de producción. Sin variable, las pruebas unitarias se ejecutan y las de integración se omiten explícitamente; CI exige PostgreSQL.
+
+Operaciones administrativas locales (requieren DATABASE_URL): `server --revoke-key 'SHA256:…'` y `server --revoke-member USER_ID --conversation CONVERSATION_ID`. El ID de usuario aparece al registrar; la huella de su clave se consulta con `ssh-keygen -lf ARCHIVO.pub`. La revocación no elimina el historial: bloquea nuevas operaciones y termina las suscripciones al siguiente sondeo (250 ms más el tiempo de consulta). Los datos ya entregados no se pueden retirar de la pantalla remota.
+
+Endpoints operativos: `GET /healthz` comprueba PostgreSQL; `GET /metrics` expone contadores sin contenidos y solo acepta conexiones loopback. No confiar en cabeceras de proxy para identidad o dirección. En contenedor accedido por red puente `/metrics` puede devolver 403; publica métricas mediante un adaptador privado antes de operar en un VPS.
