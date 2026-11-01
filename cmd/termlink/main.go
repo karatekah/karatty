@@ -185,6 +185,12 @@ func run() error {
 		defer stop()
 		_ = c.Logout(end)
 	}()
+	if session.PublicMode && *legacy && (command == "chat" || command == "history" || command == "send") {
+		return errors.New("plaintext legacy commands are unavailable in public mode")
+	}
+	if !session.PublicMode && !*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending" || command == "uncertain") {
+		return errors.New("this server uses the invitation prototype; use --legacy for its local plaintext client")
+	}
 	var secure *secureclient.Backend
 	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending" || command == "uncertain")) {
 		if command == "register" {
