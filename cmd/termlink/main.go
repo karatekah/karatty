@@ -66,12 +66,12 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "fingerprint", "verify":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify":
 	case "version":
 		fmt.Println("Karatty " + version)
 		return nil
 	default:
-		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, fingerprint, verify, metrics, delete-account, version")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -186,7 +186,7 @@ func run() error {
 		_ = c.Logout(end)
 	}()
 	var secure *secureclient.Backend
-	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "fingerprint" || command == "verify")) {
+	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify")) {
 		if command == "register" {
 			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
 		}
@@ -285,6 +285,12 @@ func run() error {
 			return e
 		}
 		fmt.Printf("Huella de %s: %s\nCompárala con esa persona por otro medio antes de verificar.\n", *peer, value)
+		return nil
+	case "my-fingerprint":
+		if secure == nil {
+			return errors.New("my-fingerprint requires the local encrypted client")
+		}
+		fmt.Println(secure.SelfFingerprint())
 		return nil
 	case "verify":
 		if *peer == "" || *fingerprint == "" || secure == nil {

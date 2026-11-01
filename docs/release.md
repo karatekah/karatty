@@ -1,6 +1,6 @@
 # Preparación de la primera alpha pública
 
-Esta es una lista de comprobación, no un anuncio de disponibilidad. El repositorio sigue privado y el servidor todavía puede leer mensajes. La publicación incluirá **el código fuente de este proyecto**, documentación y ejecutables del cliente en una versión identificable. No se creará un repositorio de solo binarios como sustituto del código público.
+Esta es una lista de comprobación, no un anuncio de disponibilidad. El repositorio sigue privado. El modo público de ensayo ya usa el cliente E2EE local; el modo legado por invitación sigue enviando texto legible al servidor. La publicación incluirá **el código fuente de este proyecto**, documentación y los dos ejecutables locales en una versión identificable.
 
 ## Condiciones antes de abrir el repositorio
 
@@ -16,22 +16,22 @@ El cambio de visibilidad se hará una vez cumplidas y registradas las condicione
 
 ## Construir candidatos del cliente
 
-Desde PowerShell, con Go 1.27.3 disponible:
+Desde PowerShell, con Go 1.27.3 y Rust 1.99.1 disponibles en la plataforma de destino:
 
 ```powershell
 ./scripts/build-release.ps1 -Version v0.1.0-alpha.1
 ```
 
-El script compila `karatty` sin CGo para Windows amd64, Linux amd64/arm64 y macOS amd64/arm64 en `dist/VERSIÓN/`. Escribe `SHA256SUMS` con un hash por ejecutable y se niega a sobrescribir una carpeta existente. No incluye el servidor, claves, configuración ni base de datos. Si el diseño final de E2EE cambia las dependencias de compilación, actualizar el script y CI antes de la Release.
+El script compila para la plataforma nativa `karatty` sin CGo y `karatty-crypto` con Rust. Crea una carpeta y archivo comprimido por plataforma en `dist/VERSIÓN/`, con hashes de ambos ejecutables y del archivo. Se niega a sobrescribir una carpeta existente. No incluye el servidor, claves, configuración ni base de datos. CI construye los candidatos en Windows, Linux y macOS; las arquitecturas concretas son las de esos runners y deben confirmarse antes de la Release.
 
-Antes de adjuntar archivos, comparar el commit con un CI verde, ejecutar `karatty version` en Windows y comprobar los cinco hashes. Instalar al menos un binario descargado desde la Release en otra máquina y probar registro, inicio de sesión, chat y actualización de versión contra el servicio publicado. En Windows, `Get-FileHash ARCHIVO -Algorithm SHA256`; en Linux/macOS, `sha256sum -c SHA256SUMS`.
+Antes de adjuntar archivos, comparar el commit con un CI verde, ejecutar `karatty version` y comprobar el hash del archivo y de ambos ejecutables. Instalar cada paquete descargado en otra máquina de su plataforma y probar registro, comparación de huellas, chat y actualización de versión contra el servicio publicado. En Windows, `Get-FileHash ARCHIVO -Algorithm SHA256`; en Linux/macOS, `sha256sum -c SHA256SUMS`.
 
 La primera alpha no tendrá firma de código ni notarización para macOS. Un hash publicado junto al binario detecta cambios frente a ese archivo, pero no autentica por sí solo al publicador. Explicar esta limitación en las instrucciones de descarga. Como el cliente apunta hoy a localhost por defecto, documentar `--server` con la dirección real antes de distribuirlo.
 
 ## Artefactos de la Release
 
 - Etiqueta y notas de versión enlazadas al commit verificado.
-- Cinco clientes para las plataformas indicadas y un archivo `SHA256SUMS`.
+- Paquetes nativos que incluyan `karatty`, `karatty-crypto` y sus hashes, más el manifiesto de hashes de los archivos comprimidos.
 - Instrucciones de instalación, primer uso, actualización y eliminación.
 - Enlaces a la documentación de arquitectura, protocolo, seguridad, privacidad, límites y roadmap.
 - Resultado fechado de las pruebas operativas y limitaciones conocidas de la alpha.

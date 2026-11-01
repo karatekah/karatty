@@ -73,21 +73,31 @@ jobs:
           go-version: '1.27.3'
       - run: go build ./cmd/...
       - run: go test -count=1 ./pkg/localstate
-      - name: Check versioned client builds
-        if: matrix.os == 'windows-latest'
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Check native encrypted bundle
         shell: pwsh
         run: |
           ./scripts/build-release.ps1
           $release = 'dist/v0.1.0-alpha.1'
-          $client = Join-Path $release 'karatty-v0.1.0-alpha.1-windows-amd64.exe'
+          $targetOS = (& go env GOOS).Trim()
+          $targetArch = (& go env GOARCH).Trim()
+          $ext = if ($targetOS -eq 'windows') { '.exe' } else { '' }
+          $bundle = "karatty-v0.1.0-alpha.1-$targetOS-$targetArch"
+          $client = Join-Path $release "$bundle/karatty$ext"
+          $crypto = Join-Path $release "$bundle/karatty-crypto$ext"
+          if (!(Test-Path $crypto)) { throw 'missing crypto executable' }
           if ((& $client version) -ne 'Karatty v0.1.0-alpha.1') { throw 'wrong client version' }
-          $hashLines = @(Get-Content (Join-Path $release 'SHA256SUMS'))
-          if ($hashLines.Count -ne 5) { throw 'wrong number of checksums' }
+          $hashLines = @(Get-Content (Join-Path $release "$bundle/SHA256SUMS"))
+          if ($hashLines.Count -ne 2) { throw 'wrong number of binary checksums' }
           foreach ($line in $hashLines) {
-            if ($line -notmatch '^([a-f0-9]{64})  (karatty-v0\.1\.0-alpha\.1-[^/\\]+)$') { throw 'invalid checksum line' }
-            $actual = (Get-FileHash (Join-Path $release $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($line -notmatch '^([a-f0-9]{64})  (karatty(?:-crypto)?(?:\.exe)?)$') { throw 'invalid checksum line' }
+            $actual = (Get-FileHash (Join-Path $release "$bundle/$($Matches[2])") -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actual -ne $Matches[1]) { throw 'checksum mismatch' }
           }
+          $outer = @(Get-Content (Join-Path $release 'SHA256SUMS'))
+          if ($outer.Count -ne 1 -or $outer[0] -notmatch '^([a-f0-9]{64})  (karatty-v0\.1\.0-alpha\.1-[^/\\]+\.(?:zip|tar\.gz))$') { throw 'invalid archive checksum' }
+          $actual = (Get-FileHash (Join-Path $release $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $Matches[1]) { throw 'archive checksum mismatch' }
   docker:
     runs-on: ubuntu-latest
     steps:

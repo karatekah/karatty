@@ -6,7 +6,7 @@ Mensajería desde una TUI instalable. La primera alpha se limitará a chats dire
 
 El primer sprint demostró que dos usuarios invitados podían conversar entre SSH y el cliente instalable, salir y recuperar el historial desde PostgreSQL; un tercero sin membresía no podía leer, enviar ni suscribirse. Ahora se prepara la alpha pública con un alcance más pequeño y E2EE obligatorio.
 
-Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. El prototipo actual ofrece TUI local y por SSH, con HTTPS/WSS y SSH para el transporte. **El servidor todavía puede leer los mensajes; no hay E2EE y esta versión no debe abrirse al público.** La alpha usará solo la TUI local para chats directos 1:1; SSH remoto y grupos quedan para después.
+Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. El modo público de ensayo en loopback ya cifra los directos 1:1 en la TUI local mediante Olm y exige comparar la huella del interlocutor. El modo de invitaciones anterior y la TUI por SSH siguen enviando texto legible al servidor; se excluyen de la alpha pública. **No hay todavía un servicio público.**
 
 ## Ejecutar
 
@@ -29,12 +29,13 @@ go test -count=1 ./...
 - Historial paginado y eventos WSS con reconexión por secuencia; gateway Wish v2 autenticado al mismo núcleo y TUI Bubble Tea v2/Bubbles v2 compartida.
 - Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.
 - Pruebas de integración con PostgreSQL real, TLS, WebSocket, cliente ejecutable y SSH con PTY; CI con detector de carreras en Linux, compilación Windows/Linux/macOS y prueba Docker.
+- Cliente local E2EE experimental para directos 1:1: Olm con ratchet, huella verificada fuera de Karatty, archivo local cifrado con frase secreta, sobres opacos en PostgreSQL y prueba de intercambio y manipulación entre dos usuarios.
 
 El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI. En el prototipo, SSH permite entrar sin instalar el cliente; esa vía no formará parte de la alpha. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
 
 ## Pendiente antes de abrir la alpha
 
-Faltan E2EE verificable en chats directos 1:1, eliminar el acceso a mensajes en claro del servidor y retirar SSH remoto y canales grupales de la alpha pública. También faltan el dominio y VPS, la prueba operativa de la purga de **30 días**, la retención/restauración de respaldos remotos y la revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta verificar su vencimiento en respaldos remotos. El historial ya oculta mensajes vencidos; la purga automática se activa con `--retention-30d` o automáticamente con `--public-signup`. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. Karatty es el nombre elegido para la alpha; la marca y el dominio aún requieren comprobación definitiva antes de publicar.
+Faltan cerrar los casos de cambio/pérdida de identidad y mensajes pendientes, empaquetar y comprobar los dos ejecutables en cada plataforma, y revisar el E2EE antes de usuarios reales. También faltan el dominio y VPS, la prueba operativa de la purga de **30 días**, la retención/restauración de respaldos remotos y la revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta verificar su vencimiento en respaldos remotos. El historial ya oculta mensajes vencidos; la purga automática se activa con `--retention-30d` o automáticamente con `--public-signup`. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. Karatty es el nombre elegido para la alpha; la marca y el dominio aún requieren comprobación definitiva antes de publicar.
 
 ## Estructura y documentación
 

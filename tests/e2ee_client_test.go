@@ -60,12 +60,18 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if bobFingerprint != bob.SelfFingerprint() {
+		t.Fatal("Bob's shared fingerprint differs from Alice's view")
+	}
 	if err = alice.Verify(f.ctx, "bob", strings.Repeat("0", 64)); err == nil {
 		t.Fatal("accepted wrong fingerprint")
 	}
 	aliceFingerprint, err := bob.Fingerprint(f.ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if aliceFingerprint != alice.SelfFingerprint() {
+		t.Fatal("Alice's shared fingerprint differs from Bob's view")
 	}
 	if err = alice.Verify(f.ctx, "bob", bobFingerprint); err != nil {
 		t.Fatal(err)

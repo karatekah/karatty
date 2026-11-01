@@ -45,6 +45,7 @@ type identityResult struct {
 type identityBackend interface {
 	Fingerprint(context.Context, string) (string, error)
 	Verify(context.Context, string, string) error
+	SelfFingerprint() string
 }
 type Model struct {
 	ctx           context.Context
@@ -119,6 +120,18 @@ func (m *Model) directCommand() tea.Cmd {
 		return nil
 	}
 	action := args[0]
+	if action == "/myfingerprint" && len(args) == 1 {
+		secure, ok := m.backend.(identityBackend)
+		if !ok {
+			m.status = "La huella requiere la TUI local cifrada."
+			return nil
+		}
+		m.input.Reset()
+		m.identityView = "Tu huella:\n" + secure.SelfFingerprint() + "\n\nCompártela con tu contacto por otro medio."
+		m.renderMessages()
+		m.status = "Tu huella local está lista para comparar."
+		return nil
+	}
 	if action == "/fingerprint" || action == "/verify" {
 		secure, ok := m.backend.(identityBackend)
 		if !ok {
@@ -397,7 +410,7 @@ func (m *Model) View() tea.View {
 	title := "Karatty · alpha"
 	status := ansi.Truncate(m.status, m.width, "…")
 	header := ansi.Truncate(strings.Join(tabs, "  "), m.width, "…")
-	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab chat · /direct USUARIO · /fingerprint USUARIO · /verify USUARIO HUELLA · Ctrl+L · Ctrl+C", m.width, "…")
+	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("/myfingerprint · /fingerprint USUARIO · /verify USUARIO HUELLA · /direct USUARIO · Ctrl+L", m.width, "…")
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
