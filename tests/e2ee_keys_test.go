@@ -4,12 +4,45 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 
 	"github.com/karatekah/termlink/internal/security"
 	"github.com/karatekah/termlink/pkg/protocol"
 	"golang.org/x/crypto/ssh"
 )
+
+func TestPublicModeRequiresCiphertextEnvelope(t *testing.T) {
+	f := setup(t)
+	f.a.PublicSignup = true
+	f.c.DirectOnly = true
+	f.c.CiphertextOnly = true
+	f.api.IdentityRequests = security.NewLimiter(1000, 1000)
+	alice, bob := f.httpClient(t), f.httpClient(t)
+	if _, err := alice.Login(f.ctx, signer(t), "alice", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bob.Login(f.ctx, signer(t), "bob", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := alice.Direct(f.ctx, "bob"); err != nil {
+		t.Fatal(err)
+	}
+	direct, err := bob.Direct(f.ctx, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = alice.Send(f.ctx, direct.ID, protocol.Send{ClientID: "plaintext", Body: "secret text"}); !status(err, 400) {
+		t.Fatal("public mode accepted plaintext", err)
+	}
+	key := base64.RawStdEncoding.EncodeToString(make([]byte, 32))
+	body := base64.RawStdEncoding.EncodeToString(make([]byte, 16))
+	envelope := `{"version":1,"session_id":"` + key + `","sender_identity":"` + key + `","message":{"type":0,"body":"` + body + `"}}`
+	message, err := alice.Send(f.ctx, direct.ID, protocol.Send{ClientID: "ciphertext", Body: envelope})
+	if err != nil || message.Body != envelope || strings.Contains(message.Body, "secret text") {
+		t.Fatal("valid envelope was not persisted opaquely", err)
+	}
+}
 
 func deviceUpload(t *testing.T, uid string, signer ssh.Signer) protocol.DeviceUpload {
 	t.Helper()

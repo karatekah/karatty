@@ -64,7 +64,7 @@ Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-ho
 ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --public
 ```
 
-El cliente muestra un código de recuperación una sola vez: guárdalo fuera del equipo. Si se pierde la clave SSH, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --username alice` con los mismos flags de conexión. El cliente pedirá el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código nuevo. Si se pierden tanto la clave SSH como el código, la cuenta no puede recuperarse.
+El cliente muestra un código de recuperación una sola vez: guárdalo fuera del equipo. Si se pierde la clave SSH, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --username alice` con los mismos flags de conexión. El cliente pedirá el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código nuevo. Si se pierden tanto la clave SSH como el código, la cuenta no puede recuperarse. En este modo todavía puedes ensayar registro y aceptación de directos; el envío desde el cliente actual falla porque la API exige un sobre cifrado que la TUI aún no genera.
 
 ## Linux y macOS
 

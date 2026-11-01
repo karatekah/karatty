@@ -18,6 +18,7 @@ func TestAnonymousSignupAndOfflineRecovery(t *testing.T) {
 	}
 	f.a.PublicSignup = true
 	f.c.DirectOnly = true
+	f.c.CiphertextOnly = true
 	f.api.IdentityRequests = security.NewLimiter(1000, 1000)
 	aliceKey := signer(t)
 	alice := f.httpClient(t)
@@ -124,7 +125,7 @@ func TestAnonymousSignupAndOfflineRecovery(t *testing.T) {
 		t.Fatal("email column remains", emailColumns, err)
 	}
 	var versions int
-	if err = f.db.QueryRow(f.ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 7 {
+	if err = f.db.QueryRow(f.ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 8 {
 		t.Fatal("migration history is incomplete", versions, err)
 	}
 }

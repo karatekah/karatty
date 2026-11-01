@@ -3,8 +3,11 @@ package security
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"io"
 	"regexp"
 	"strings"
 	"sync"
@@ -41,6 +44,35 @@ func Body(s string) bool {
 		}
 	}
 	return true
+}
+
+// Envelope validates the public-mode wire shape, not cryptographic correctness.
+func Envelope(s string) bool {
+	if len(s) == 0 || len(s) > 8192 {
+		return false
+	}
+	var in struct {
+		Version        int    `json:"version"`
+		SessionID      string `json:"session_id"`
+		SenderIdentity string `json:"sender_identity"`
+		Message        struct {
+			Type int    `json:"type"`
+			Body string `json:"body"`
+		} `json:"message"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(s))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&in) != nil || decoder.Decode(&struct{}{}) != io.EOF || in.Version != 1 || (in.Message.Type != 0 && in.Message.Type != 1) {
+		return false
+	}
+	for _, field := range []string{in.SessionID, in.SenderIdentity} {
+		decoded, err := base64.RawStdEncoding.DecodeString(field)
+		if err != nil || len(decoded) != 32 || base64.RawStdEncoding.EncodeToString(decoded) != field {
+			return false
+		}
+	}
+	decoded, err := base64.RawStdEncoding.DecodeString(in.Message.Body)
+	return err == nil && len(decoded) >= 16 && len(decoded) <= 6144 && base64.RawStdEncoding.EncodeToString(decoded) == in.Message.Body
 }
 
 // Display is defense in depth for untrusted text from any server or legacy row.

@@ -13,10 +13,11 @@ import (
 )
 
 type Service struct {
-	DB         *pgxpool.Pool
-	Sends      *security.Limiter
-	Requests   *security.Limiter
-	DirectOnly bool
+	DB             *pgxpool.Pool
+	Sends          *security.Limiter
+	Requests       *security.Limiter
+	DirectOnly     bool
+	CiphertextOnly bool
 }
 
 func New(db *pgxpool.Pool) *Service {
@@ -110,7 +111,7 @@ func (s *Service) History(ctx context.Context, token, conv string, after int64, 
 }
 func (s *Service) Send(ctx context.Context, token, conv string, r protocol.Send) (protocol.Message, error) {
 	var m protocol.Message
-	if !security.Identifier(conv) || !security.Identifier(r.ClientID) || !security.Body(r.Body) {
+	if !security.Identifier(conv) || !security.Identifier(r.ClientID) {
 		return m, security.ErrInvalid
 	}
 	tx, err := s.DB.Begin(ctx)
@@ -141,6 +142,9 @@ func (s *Service) Send(ctx context.Context, token, conv string, r protocol.Send)
 	}
 	if closed {
 		return m, security.ErrForbidden
+	}
+	if (s.CiphertextOnly && !security.Envelope(r.Body)) || (!s.CiphertextOnly && !security.Body(r.Body)) {
+		return m, security.ErrInvalid
 	}
 	// An expired ID can be reused only after removing its old message in this
 	// transaction. No expired body is returned through the retry ACK.
