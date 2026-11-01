@@ -43,6 +43,21 @@ jobs:
         with:
           go-version: '1.27.3'
       - run: go build ./cmd/...
+      - name: Check versioned client builds
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1
+          $release = 'dist/v0.1.0-alpha.1'
+          $client = Join-Path $release 'karatty-v0.1.0-alpha.1-windows-amd64.exe'
+          if ((& $client version) -ne 'Karatty v0.1.0-alpha.1') { throw 'wrong client version' }
+          $hashLines = @(Get-Content (Join-Path $release 'SHA256SUMS'))
+          if ($hashLines.Count -ne 5) { throw 'wrong number of checksums' }
+          foreach ($line in $hashLines) {
+            if ($line -notmatch '^([a-f0-9]{64})  (karatty-v0\.1\.0-alpha\.1-[^/\\]+)$') { throw 'invalid checksum line' }
+            $actual = (Get-FileHash (Join-Path $release $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $Matches[1]) { throw 'checksum mismatch' }
+          }
   docker:
     runs-on: ubuntu-latest
     steps:
