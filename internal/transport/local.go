@@ -27,6 +27,18 @@ func (l Local) Send(ctx context.Context, c string, r protocol.Send) (protocol.Me
 func (l Local) Direct(ctx context.Context, u string) (protocol.Conversation, error) {
 	return l.Chat.Direct(ctx, l.Token, u)
 }
+func (l Local) DirectRequests(ctx context.Context) ([]protocol.DirectRequest, error) {
+	return l.Chat.DirectRequests(ctx, l.Token)
+}
+func (l Local) DeclineDirect(ctx context.Context, u string) error {
+	return l.Chat.DeclineDirect(ctx, l.Token, u)
+}
+func (l Local) BlockDirect(ctx context.Context, u string) error {
+	return l.Chat.BlockDirect(ctx, l.Token, u)
+}
+func (l Local) UnblockDirect(ctx context.Context, u string) error {
+	return l.Chat.UnblockDirect(ctx, l.Token, u)
+}
 func (l Local) Stream(ctx context.Context, conv string, after int64) <-chan client.Event {
 	out := make(chan client.Event, 1)
 	go func() {

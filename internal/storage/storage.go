@@ -42,5 +42,8 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err = tx.Exec(ctx, migrations.AccountDeletion); err != nil {
 		return err
 	}
+	if _, err = tx.Exec(ctx, migrations.DirectConsent); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }

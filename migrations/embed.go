@@ -10,3 +10,6 @@ var Retention string
 
 //go:embed 003_account_deletion.sql
 var AccountDeletion string
+
+//go:embed 004_direct_consent.sql
+var DirectConsent string

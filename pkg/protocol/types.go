@@ -22,10 +22,15 @@ type Session struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 type Conversation struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Kind   string `json:"kind"`
-	Closed bool   `json:"closed"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Closed  bool   `json:"closed"`
+	Pending bool   `json:"pending,omitempty"`
+}
+type DirectRequest struct {
+	Username  string    `json:"username"`
+	CreatedAt time.Time `json:"created_at"`
 }
 type Send struct {
 	ClientID string `json:"client_id"`

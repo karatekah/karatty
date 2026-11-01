@@ -54,7 +54,7 @@ ssh -p 2222 -i .local/eve chat@127.0.0.1 history $channel 0
 
 El primero devuelve hasta 100 mensajes y `next`; úsalo como `--after` para la siguiente página. Eve recibe rechazo porque su invitación no da membresía al canal. Eve tampoco puede enviar ni suscribirse a sus eventos. La suite automatizada verifica los tres casos.
 
-Crear un chat directo: `termlink direct --peer bob` con los mismos flags de conexión. Ambos participantes lo ven al recargar conversaciones. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
+Solicitar un chat directo: `termlink direct --peer bob` con los mismos flags de conexión. Devuelve `pending:true` y ningún ID. Bob ve la solicitud con `termlink requests` y la acepta con `termlink direct --peer alice`; entonces ambos ven el chat al recargar. Bob puede rechazarla con `termlink decline --peer alice` o bloquear a Alice con `termlink block --peer alice`; `termlink unblock --peer alice` permite recibir una solicitud nueva. En la TUI se usan `/requests`, `/direct USUARIO`, `/decline USUARIO`, `/block USUARIO` y `/unblock USUARIO`. Las solicitudes vencen a los 7 días. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
 
 ## Linux y macOS
 

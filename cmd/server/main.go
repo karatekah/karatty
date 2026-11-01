@@ -145,6 +145,12 @@ func runRetention(ctx context.Context, db *pgxpool.Pool) {
 		} else if err == nil {
 			slog.Info("message retention purge finished", "deleted", count)
 		}
+		requests, requestErr := storage.PurgeExpiredDirectRequests(ctx, db)
+		if requestErr != nil && ctx.Err() == nil {
+			slog.Error("direct request purge failed")
+		} else if requestErr == nil {
+			slog.Info("direct request purge finished", "deleted", requests)
+		}
 		select {
 		case <-ctx.Done():
 			return

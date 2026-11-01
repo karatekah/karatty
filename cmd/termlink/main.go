@@ -56,9 +56,9 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "login", "list", "history", "send", "direct", "metrics", "delete-account":
+	case "chat", "register", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account":
 	default:
-		return errors.New("commands: chat, register, login, list, history, send, direct, metrics, delete-account")
+		return errors.New("commands: chat, register, login, list, history, send, direct, requests, decline, block, unblock, metrics, delete-account")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -168,6 +168,24 @@ func run() error {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
+	case "requests":
+		out, e := c.DirectRequests(ctx)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(out)
+	case "decline", "block", "unblock":
+		if *peer == "" {
+			return errors.New("provide --peer with the other username")
+		}
+		switch command {
+		case "decline":
+			return c.DeclineDirect(ctx, *peer)
+		case "block":
+			return c.BlockDirect(ctx, *peer)
+		default:
+			return c.UnblockDirect(ctx, *peer)
+		}
 	case "metrics":
 		out, e := c.Metrics(ctx)
 		if e != nil {
