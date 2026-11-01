@@ -130,7 +130,7 @@ func run() error {
 	if *retention30d || *publicSignup {
 		go runRetention(ctx, db)
 	}
-	slog.Info("termlink started", "address", *addr, "ssh_enabled", *hostKey != "")
+	slog.Info("karatty started", "address", *addr, "ssh_enabled", *hostKey != "")
 	select {
 	case <-ctx.Done():
 		shutdown, done := context.WithTimeout(context.Background(), 5*time.Second)
@@ -166,6 +166,12 @@ func runRetention(ctx context.Context, db *pgxpool.Pool) {
 			slog.Error("email challenge purge failed")
 		} else if challengeErr == nil {
 			slog.Info("email challenge purge finished", "deleted", challenges)
+		}
+		authRecords, authErr := storage.PurgeExpiredAuthRecords(ctx, db)
+		if authErr != nil && ctx.Err() == nil {
+			slog.Error("auth record purge failed")
+		} else if authErr == nil {
+			slog.Info("auth record purge finished", "deleted", authRecords)
 		}
 		select {
 		case <-ctx.Done():

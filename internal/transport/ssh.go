@@ -83,7 +83,7 @@ func NewSSH(a *auth.Service, c *chat.Service, hostKey string) (*sshserver.Server
 		}
 		_, _, pty := sess.Pty()
 		if !pty {
-			_, _ = io.WriteString(sess, "TERMLINK requires a terminal. Use ssh -t, or list/history/send commands.\n")
+			_, _ = io.WriteString(sess, "Karatty requiere una terminal. Usa ssh -t o los comandos list/requests/direct/history/send.\n")
 			_ = sess.Exit(1)
 			return
 		}

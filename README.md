@@ -1,4 +1,4 @@
-# TERMLINK (nombre provisional)
+# Karatty (alpha en preparación)
 
 Mensajería propia desde la terminal, con un cliente nativo y acceso SSH. Repositorio privado de trabajo de karatekah. Sin integración ni código de WhatsApp o wacon-mcp.
 
@@ -30,11 +30,11 @@ go test -count=1 ./...
 - Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.
 - Pruebas de integración con PostgreSQL real, TLS, WebSocket, cliente ejecutable y SSH con PTY; CI con detector de carreras en Linux, compilación Windows/Linux/macOS y prueba Docker.
 
-El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI; después SSH no requiere instalar TERMLINK. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
+El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI; después SSH no requiere instalar Karatty. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
 
 ## Pendiente antes de abrir la alpha
 
-Faltan la contratación/configuración del proveedor de correo y dominio, la prueba operativa de la purga de **30 días**, la retención/restauración de respaldos y la revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta su vencimiento en respaldos. El historial ya oculta mensajes vencidos; la purga automática se activa con `--retention-30d` o automáticamente con `--public-signup`. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. TERMLINK tiene conflictos de nombre conocidos y requiere investigación de marca/dominio antes de publicación comercial.
+Faltan la contratación/configuración del proveedor de correo y dominio, la prueba operativa de la purga de **30 días**, la retención/restauración de respaldos remotos y la revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta verificar su vencimiento en respaldos remotos. El historial ya oculta mensajes vencidos; la purga automática se activa con `--retention-30d` o automáticamente con `--public-signup`. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. Karatty es el nombre elegido para la alpha; la marca y el dominio aún requieren comprobación definitiva antes de publicar.
 
 ## Estructura y documentación
 
@@ -42,5 +42,6 @@ Faltan la contratación/configuración del proveedor de correo y dominio, la pru
 
 [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
 [Operación y respaldos para la alpha](docs/operations.md)
+[Borrador de privacidad (no publicable aún)](docs/privacy-draft.md)
 
 Código privado sin licencia pública concedida por este repositorio. La elección de licencia comercial o de distribución es una decisión pendiente del propietario. Las dependencias conservan sus licencias propias.

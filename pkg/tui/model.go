@@ -338,7 +338,7 @@ func (m *Model) View() tea.View {
 		}
 		tabs = append(tabs, name)
 	}
-	title := "TERMLINK · alpha local · nombre provisional"
+	title := "Karatty · alpha"
 	status := ansi.Truncate(m.status, m.width, "…")
 	header := ansi.Truncate(strings.Join(tabs, "  "), m.width, "…")
 	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab chat · /requests solicitudes · /direct USUARIO · Ctrl+L recargar · Ctrl+C salir", m.width, "…")
