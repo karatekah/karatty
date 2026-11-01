@@ -63,4 +63,13 @@ func TestOlmBridgeRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(received["plaintext"], &plaintext); err != nil || plaintext != "hola" {
 		t.Fatal("cross-language round trip failed", err)
 	}
+	replenished := call(t, bin, map[string]any{"op": "replenish", "account": received["account"], "one_time_keys": 1})
+	var newKeys []struct{ Key, Signature string }
+	if err := json.Unmarshal(replenished["one_time_keys"], &newKeys); err != nil || len(newKeys) != 1 || newKeys[0].Key == keys[0].Key {
+		t.Fatal("one-time key was not replenished", err)
+	}
+	newSig, _ := base64.RawStdEncoding.DecodeString(newKeys[0].Signature)
+	if !ed25519.Verify(ed, []byte("KARATTY-OTK-v1\n"+bobIdentity.Curve+"\n"+newKeys[0].Key), newSig) {
+		t.Fatal("replenished key signature failed Go verification")
+	}
 }
