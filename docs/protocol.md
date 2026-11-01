@@ -6,10 +6,8 @@ JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Au
 | --- | --- |
 | Desafío de registro/login | POST /v1/auth/challenge |
 | Firma SSH serializada (JSON codifica []byte como base64) | POST /v1/auth/proof |
-| Inicio de registro público con username, correo y clave pública | POST /v1/signup/start |
-| Prueba de clave y código recibido por correo | POST /v1/signup/complete |
-| Inicio de recuperación con correo y clave pública nueva | POST /v1/recovery/start |
-| Prueba de clave nueva, código de correo y código de recuperación | POST /v1/recovery/complete |
+| Inicio de recuperación con seudónimo y clave pública nueva | POST /v1/recovery/start |
+| Firma de la nueva clave y código de recuperación | POST /v1/recovery/complete |
 | Cierre/revocación de sesión | DELETE /v1/session |
 | Eliminación de la cuenta autenticada | DELETE /v1/account |
 | Conversaciones accesibles (máximo 100 en sprint) | GET /v1/conversations |
@@ -30,6 +28,8 @@ JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Au
 
 `POST /v1/direct` devuelve `pending:true` y un ID vacío cuando crea o repite una solicitud. Solo la llamada recíproca del destinatario abre el chat y devuelve su ID. Las solicitudes vencen a los 7 días; el listado no muestra solicitudes vencidas. Rechazar elimina la solicitud entrante. Bloquear elimina las solicitudes de ambas direcciones, impide nuevas solicitudes y cierra el chat directo existente; ambas partes pueden leer el historial ya autorizado hasta su vencimiento. Desbloquear permite iniciar un nuevo intercambio, sin reabrir el chat archivado.
 
-El modo `server --public-signup` desactiva el registro por invitación y habilita el registro con correo verificado. `start` devuelve un desafío de firma; el servidor manda un código aleatorio al correo indicado si el usuario y el correo pueden registrarse. `complete` consume el desafío en un solo intento y exige la firma Ed25519 y el código. La respuesta contiene una sesión temporal y un código de recuperación generado al crear la cuenta, que se muestra una sola vez. Para recuperar una clave perdida, `recovery/start` envía otro código al correo verificado y recibe la clave pública nueva; `recovery/complete` exige firma con la nueva clave, código del correo y código de recuperación. Al completar, revoca todas las claves y sesiones anteriores y rota el código de recuperación. Los desafíos vencen en 10 minutos. Las respuestas de inicio no revelan si un correo ya tiene cuenta.
+El modo `server --public-signup` desactiva el registro por invitación y permite crear una cuenta con seudónimo y clave pública Ed25519, sin correo. En este modo, la API solo lista directos y rechaza historial, eventos y envíos de canales, incluso si existían antes. `auth/challenge` devuelve un desafío de firma con dominio `KARATTY-PUBLIC-REGISTER-v1`; `auth/proof` lo consume en un solo intento y exige la firma de la nueva clave. La respuesta incluye una sesión temporal y un código de recuperación de 192 bits que se muestra una sola vez. En modo invitación, el registro también entrega ese código. Para reemplazar una clave perdida, `recovery/start` recibe el seudónimo y la clave pública nueva; `recovery/complete` exige la firma de esa clave y el código guardado. Al completar, revoca todas las claves y sesiones anteriores y rota el código. Los desafíos vencen en dos minutos. La respuesta de inicio de recuperación no revela si existe el seudónimo.
 
-SSH usa handshake de clave pública y una sesión de dominio por canal SSH. Shell con PTY abre la TUI. Comandos permitidos: `list`, `requests`, `direct USERNAME`, `decline USERNAME`, `block USERNAME`, `unblock USERNAME`, `history CONVERSATION AFTER`, `send CONVERSATION CLIENT_ID` con cuerpo por stdin. No se ejecutan comandos del sistema. El registro requiere primero asociar la clave mediante CLI/invitación; un usuario ya registrado accede después desde cualquier equipo que tenga su clave y un cliente SSH.
+El prototipo SSH usa handshake de clave pública y una sesión de dominio por canal SSH. Shell con PTY abre una TUI en el servidor. Comandos permitidos: `list`, `requests`, `direct USERNAME`, `decline USERNAME`, `block USERNAME`, `unblock USERNAME`, `history CONVERSATION AFTER`, `send CONVERSATION CLIENT_ID` con cuerpo por stdin. No se ejecutan comandos del sistema. **Este acceso no es E2EE y queda fuera de la alpha pública.** El servidor rechaza la combinación `--public-signup` y `--ssh-host-key`.
+
+Hasta implementar E2EE, `--public-signup` exige que la API escuche solo en loopback. Es un modo de ensayo local, no una configuración de despliegue público.

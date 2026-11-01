@@ -16,3 +16,6 @@ var DirectConsent string
 
 //go:embed 005_email_identity.sql
 var EmailIdentity string
+
+//go:embed 006_anonymous_identity.sql
+var AnonymousIdentity string

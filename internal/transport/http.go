@@ -117,6 +117,13 @@ func (a *API) Handler() http.Handler {
 			failure(w, err)
 			return
 		}
+		if in.Username != "" {
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+			if !a.IdentityRequests.Allow(host) {
+				failure(w, security.ErrLimited)
+				return
+			}
+		}
 		out, err := a.Auth.Challenge(r.Context(), in)
 		if err != nil {
 			failure(w, err)
@@ -131,37 +138,6 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		out, err := a.Auth.Finish(r.Context(), in)
-		if err != nil {
-			failure(w, err)
-			return
-		}
-		write(w, 200, out)
-	})
-	mux.HandleFunc("POST /v1/signup/start", func(w http.ResponseWriter, r *http.Request) {
-		host, _, _ := net.SplitHostPort(r.RemoteAddr)
-		if !a.IdentityRequests.Allow(host) {
-			failure(w, security.ErrLimited)
-			return
-		}
-		var in protocol.SignupStart
-		if err := decode(w, r, &in); err != nil {
-			failure(w, err)
-			return
-		}
-		out, err := a.Auth.StartSignup(r.Context(), in)
-		if err != nil {
-			failure(w, err)
-			return
-		}
-		write(w, 200, out)
-	})
-	mux.HandleFunc("POST /v1/signup/complete", func(w http.ResponseWriter, r *http.Request) {
-		var in protocol.EmailProof
-		if err := decode(w, r, &in); err != nil {
-			failure(w, err)
-			return
-		}
-		out, err := a.Auth.CompleteSignup(r.Context(), in)
 		if err != nil {
 			failure(w, err)
 			return

@@ -114,7 +114,11 @@ func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitatio
 	if err != nil {
 		return protocol.Session{}, err
 	}
-	if !strings.HasPrefix(challenge.Payload, "TERMLINK-AUTH-v1\n") || len(challenge.Payload) > 256 {
+	prefix := "TERMLINK-AUTH-v1\n"
+	if username != "" && invitation == "" {
+		prefix = "KARATTY-PUBLIC-REGISTER-v1\n"
+	}
+	if !strings.HasPrefix(challenge.Payload, prefix) || len(challenge.Payload) > 256 {
 		return protocol.Session{}, errors.New("invalid server challenge")
 	}
 	sig, err := signer.Sign(rand.Reader, []byte(challenge.Payload))
@@ -128,41 +132,21 @@ func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitatio
 	}
 	return session, err
 }
-func (c *HTTP) StartSignup(ctx context.Context, signer ssh.Signer, username, email string) (protocol.Challenge, error) {
+func (c *HTTP) StartRecovery(ctx context.Context, signer ssh.Signer, username string) (protocol.Challenge, error) {
 	var challenge protocol.Challenge
-	err := c.request(ctx, "POST", "/v1/signup/start", protocol.SignupStart{Username: username, Email: email, PublicKey: string(ssh.MarshalAuthorizedKey(signer.PublicKey()))}, &challenge)
-	if err == nil && (!strings.HasPrefix(challenge.Payload, "TERMLINK-SIGNUP-v1\n") || len(challenge.Payload) > 256) {
+	err := c.request(ctx, "POST", "/v1/recovery/start", protocol.RecoveryStart{Username: username, PublicKey: string(ssh.MarshalAuthorizedKey(signer.PublicKey()))}, &challenge)
+	if err == nil && (!strings.HasPrefix(challenge.Payload, "KARATTY-RECOVERY-v2\n") || len(challenge.Payload) > 256) {
 		return protocol.Challenge{}, errors.New("invalid server challenge")
 	}
 	return challenge, err
 }
-func (c *HTTP) CompleteSignup(ctx context.Context, signer ssh.Signer, challenge protocol.Challenge, code string) (protocol.SignupResult, error) {
-	sig, err := signer.Sign(rand.Reader, []byte(challenge.Payload))
-	if err != nil {
-		return protocol.SignupResult{}, err
-	}
-	var result protocol.SignupResult
-	err = c.request(ctx, "POST", "/v1/signup/complete", protocol.EmailProof{ID: challenge.ID, Code: code, Signature: ssh.Marshal(sig)}, &result)
-	if err == nil {
-		c.Token = result.Session.Token
-	}
-	return result, err
-}
-func (c *HTTP) StartRecovery(ctx context.Context, signer ssh.Signer, email string) (protocol.Challenge, error) {
-	var challenge protocol.Challenge
-	err := c.request(ctx, "POST", "/v1/recovery/start", protocol.RecoveryStart{Email: email, PublicKey: string(ssh.MarshalAuthorizedKey(signer.PublicKey()))}, &challenge)
-	if err == nil && (!strings.HasPrefix(challenge.Payload, "TERMLINK-RECOVERY-v1\n") || len(challenge.Payload) > 256) {
-		return protocol.Challenge{}, errors.New("invalid server challenge")
-	}
-	return challenge, err
-}
-func (c *HTTP) CompleteRecovery(ctx context.Context, signer ssh.Signer, challenge protocol.Challenge, code, recoveryCode string) (protocol.RecoveryResult, error) {
+func (c *HTTP) CompleteRecovery(ctx context.Context, signer ssh.Signer, challenge protocol.Challenge, recoveryCode string) (protocol.RecoveryResult, error) {
 	sig, err := signer.Sign(rand.Reader, []byte(challenge.Payload))
 	if err != nil {
 		return protocol.RecoveryResult{}, err
 	}
 	var result protocol.RecoveryResult
-	err = c.request(ctx, "POST", "/v1/recovery/complete", protocol.RecoveryProof{EmailProof: protocol.EmailProof{ID: challenge.ID, Code: code, Signature: ssh.Marshal(sig)}, RecoveryCode: recoveryCode}, &result)
+	err = c.request(ctx, "POST", "/v1/recovery/complete", protocol.RecoveryProof{Proof: protocol.Proof{ID: challenge.ID, Signature: ssh.Marshal(sig)}, RecoveryCode: recoveryCode}, &result)
 	return result, err
 }
 func (c *HTTP) Logout(ctx context.Context) error {

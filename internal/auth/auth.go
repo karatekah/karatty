@@ -13,12 +13,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type MailSender interface {
-	SendCode(context.Context, string, string, string) error
-}
 type Service struct {
 	DB           *pgxpool.Pool
-	Mail         MailSender
 	PublicSignup bool
 }
 
@@ -38,17 +34,22 @@ func PublicKey(raw string) (ssh.PublicKey, string, error) {
 }
 
 func (s *Service) Challenge(ctx context.Context, r protocol.ChallengeRequest) (protocol.Challenge, error) {
-	if s.PublicSignup && r.Username != "" {
-		return protocol.Challenge{}, security.ErrForbidden
-	}
 	_, canonical, err := PublicKey(r.PublicKey)
 	if err != nil {
 		return protocol.Challenge{}, err
 	}
-	if r.Username != "" && (!security.Identifier(r.Username) || len(r.Invitation) > 256 || r.Invitation == "") {
+	if r.Username != "" {
+		if !security.Identifier(r.Username) || len(r.Invitation) > 256 || (r.Invitation == "" && !s.PublicSignup) || (r.Invitation != "" && s.PublicSignup) {
+			return protocol.Challenge{}, security.ErrInvalid
+		}
+	} else if r.Invitation != "" {
 		return protocol.Challenge{}, security.ErrInvalid
 	}
-	c := protocol.Challenge{ID: security.ID(), Payload: "TERMLINK-AUTH-v1\n" + security.ID()}
+	prefix := "TERMLINK-AUTH-v1\n"
+	if r.Username != "" && s.PublicSignup {
+		prefix = "KARATTY-PUBLIC-REGISTER-v1\n"
+	}
+	c := protocol.Challenge{ID: security.ID(), Payload: prefix + security.ID()}
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return c, err
@@ -85,8 +86,12 @@ func (s *Service) Finish(ctx context.Context, p protocol.Proof) (protocol.Sessio
 	if err != nil {
 		return protocol.Session{}, security.ErrUnauthorized
 	}
+	expectedPrefix := "TERMLINK-AUTH-v1\n"
 	if username != "" && s.PublicSignup {
-		return protocol.Session{}, security.ErrForbidden
+		expectedPrefix = "KARATTY-PUBLIC-REGISTER-v1\n"
+	}
+	if !strings.HasPrefix(payload, expectedPrefix) {
+		return protocol.Session{}, security.ErrUnauthorized
 	}
 	// Consume even invalid proofs so a challenge permits only one attempt.
 	key, _, err := PublicKey(raw)
@@ -99,16 +104,19 @@ func (s *Service) Finish(ctx context.Context, p protocol.Proof) (protocol.Sessio
 		return protocol.Session{}, err
 	}
 	defer tx.Rollback(ctx)
-	var uid, kid string
+	var uid, kid, recoveryCode string
 	if username != "" {
 		var conversation *string
-		err = tx.QueryRow(ctx, `UPDATE invitations SET remaining=remaining-1 WHERE token_hash=$1 AND remaining>0 AND expires_at>now() RETURNING conversation_id`, invite).Scan(&conversation)
-		if err != nil {
-			return protocol.Session{}, security.ErrUnauthorized
+		if !s.PublicSignup {
+			err = tx.QueryRow(ctx, `UPDATE invitations SET remaining=remaining-1 WHERE token_hash=$1 AND remaining>0 AND expires_at>now() RETURNING conversation_id`, invite).Scan(&conversation)
+			if err != nil {
+				return protocol.Session{}, security.ErrUnauthorized
+			}
 		}
 		uid = security.ID()
 		kid = security.ID()
-		if _, err = tx.Exec(ctx, "INSERT INTO users(id,username) VALUES($1,$2)", uid, username); err != nil {
+		recoveryCode = security.ID()
+		if _, err = tx.Exec(ctx, "INSERT INTO users(id,username,recovery_hash) VALUES($1,$2,$3)", uid, username, security.Hash(recoveryCode)); err != nil {
 			return protocol.Session{}, security.ErrInvalid
 		}
 		if _, err = tx.Exec(ctx, "INSERT INTO ssh_keys(id,user_id,public_key,fingerprint) VALUES($1,$2,$3,$4)", kid, uid, raw, ssh.FingerprintSHA256(key)); err != nil {
@@ -129,6 +137,7 @@ func (s *Service) Finish(ctx context.Context, p protocol.Proof) (protocol.Sessio
 	if err != nil {
 		return session, err
 	}
+	session.RecoveryCode = recoveryCode
 	return session, tx.Commit(ctx)
 }
 
@@ -228,8 +237,7 @@ func (s *Service) DeleteAccount(ctx context.Context, token string) error {
 		return err
 	}
 	var username string
-	var email *string
-	if err = tx.QueryRow(ctx, "SELECT username,email FROM users WHERE id=$1 FOR UPDATE", uid).Scan(&username, &email); err != nil {
+	if err = tx.QueryRow(ctx, "SELECT username FROM users WHERE id=$1 FOR UPDATE", uid).Scan(&username); err != nil {
 		return err
 	}
 	queries := []struct {
@@ -239,7 +247,7 @@ func (s *Service) DeleteAccount(ctx context.Context, token string) error {
 		{`UPDATE conversations SET direct_pair=NULL,name='Cuenta eliminada',closed_at=now()
 			WHERE kind='direct' AND (split_part(direct_pair,':',1)=$1 OR split_part(direct_pair,':',2)=$1)`, []any{uid}},
 		{`DELETE FROM auth_challenges WHERE username=$1 OR public_key IN (SELECT public_key FROM ssh_keys WHERE user_id=$2)`, []any{username, uid}},
-		{`DELETE FROM email_challenges WHERE username=$1 OR email=$2 OR user_id=$3`, []any{username, email, uid}},
+		{`DELETE FROM recovery_challenges WHERE user_id=$1`, []any{uid}},
 		{`DELETE FROM messages WHERE sender_id=$1`, []any{uid}},
 		{`DELETE FROM memberships WHERE user_id=$1`, []any{uid}},
 		{`DELETE FROM sessions WHERE user_id=$1`, []any{uid}},

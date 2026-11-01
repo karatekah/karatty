@@ -41,8 +41,8 @@ func run() error {
 	base := flags.String("server", "https://127.0.0.1:8443", "API URL")
 	keyPath := flags.String("key", "", "Ed25519 private key path")
 	username := flags.String("username", "", "username for registration")
-	email := flags.String("email", "", "verified email for public registration or recovery")
 	invitationStdin := flags.Bool("invitation-stdin", false, "read invitation from standard input (registration)")
+	public := flags.Bool("public", false, "register a pseudonym without an invitation")
 	dev := flags.Bool("dev", false, "allow loopback HTTP")
 	caPath := flags.String("ca-cert", "", "additional trusted PEM CA certificate")
 	conv := flags.String("conversation", "", "conversation ID for history/send")
@@ -111,42 +111,13 @@ func run() error {
 		transport.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
 		c.Transport = &http.Client{Transport: transport, Timeout: 10 * time.Second}
 	}
-	if command == "register" && *email != "" {
-		if *username == "" || *invitationStdin {
-			return errors.New("public registration requires --username and --email, without --invitation-stdin")
-		}
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer cancel()
-		challenge, e := c.StartSignup(ctx, signer, *username, *email)
-		if e != nil {
-			return e
-		}
-		code, e := readSecret("Código del correo (entrada oculta): ")
-		if e != nil {
-			return e
-		}
-		result, e := c.CompleteSignup(ctx, signer, challenge, string(code))
-		for i := range code {
-			code[i] = 0
-		}
-		if e != nil {
-			return e
-		}
-		defer func() { _ = c.Logout(context.Background()) }()
-		fmt.Printf("Cuenta creada. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", result.RecoveryCode)
-		return nil
-	}
 	if command == "recover" {
-		if *email == "" {
-			return errors.New("recovery requires --email and --key with a new SSH key")
+		if *username == "" {
+			return errors.New("recovery requires --username and --key with a new SSH key")
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
-		challenge, e := c.StartRecovery(ctx, signer, *email)
-		if e != nil {
-			return e
-		}
-		code, e := readSecret("Código del correo (entrada oculta): ")
+		challenge, e := c.StartRecovery(ctx, signer, *username)
 		if e != nil {
 			return e
 		}
@@ -154,10 +125,7 @@ func run() error {
 		if e != nil {
 			return e
 		}
-		result, e := c.CompleteRecovery(ctx, signer, challenge, string(code), string(recoveryCode))
-		for i := range code {
-			code[i] = 0
-		}
+		result, e := c.CompleteRecovery(ctx, signer, challenge, string(recoveryCode))
 		for i := range recoveryCode {
 			recoveryCode[i] = 0
 		}
@@ -174,7 +142,12 @@ func run() error {
 		if name == "" {
 			return errors.New("registration requires --username")
 		}
-		if *invitationStdin {
+		if *public && *invitationStdin {
+			return errors.New("choose --public or --invitation-stdin")
+		}
+		if *public {
+			// The server decides whether public registration is enabled.
+		} else if *invitationStdin {
 			if _, err = fmt.Fscan(os.Stdin, &invite); err != nil {
 				return errors.New("cannot read invitation")
 			}
@@ -206,7 +179,10 @@ func run() error {
 		_ = c.Logout(end)
 	}()
 	switch command {
-	case "register", "login":
+	case "register":
+		fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
+		return nil
+	case "login":
 		fmt.Printf("Identidad verificada: %s. La sesión temporal se cierra al salir.\n", session.UserID)
 		return nil
 	case "chat":
