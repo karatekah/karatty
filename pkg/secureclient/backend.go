@@ -100,6 +100,32 @@ func (b *Backend) Verify(ctx context.Context, peer, fingerprint string) error {
 	return b.Secure.Verify(ctx, peer, fingerprint)
 }
 func (b *Backend) SelfFingerprint() string { return b.Secure.SelfFingerprint() }
+func (b *Backend) Reverify(ctx context.Context, peer, fingerprint string) error {
+	conv, err := b.directID(ctx, peer)
+	if err != nil {
+		return err
+	}
+	return b.Secure.Reverify(ctx, conv, peer, fingerprint)
+}
+func (b *Backend) DiscardPending(ctx context.Context, peer string) (int, error) {
+	conv, err := b.directID(ctx, peer)
+	if err != nil {
+		return 0, err
+	}
+	return b.Secure.DiscardPending(conv)
+}
+func (b *Backend) directID(ctx context.Context, peer string) (string, error) {
+	rooms, err := b.HTTP.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, room := range rooms {
+		if room.Kind == "direct" && room.Name == peer && !room.Closed {
+			return room.ID, nil
+		}
+	}
+	return "", errors.New("direct conversation unavailable")
+}
 
 func sendEvent(ctx context.Context, out chan<- client.Event, event client.Event) bool {
 	select {

@@ -164,4 +164,48 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	if len(bob.Archive(direct.ID)) != 3 {
 		t.Fatal("tampered plaintext entered local archive")
 	}
+	if _, err = bob.Send(f.ctx, direct.ID, "alice", protocol.Send{ClientID: "old-unread", Body: "mensaje antiguo"}); err != nil {
+		t.Fatal(err)
+	}
+	newBobKey := signer(t)
+	challenge, err := bobHTTP.StartRecovery(f.ctx, newBobKey, "bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = bobHTTP.CompleteRecovery(f.ctx, newBobKey, challenge, bobLogin.RecoveryCode); err != nil {
+		t.Fatal(err)
+	}
+	recoveredHTTP := f.httpClient(t)
+	if _, err = recoveredHTTP.Login(f.ctx, newBobKey, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	recoveredBob, err := secureclient.Open(f.ctx, recoveredHTTP, newBobKey, bobLogin.UserID, passphrase, bobDir, bin)
+	if err != nil {
+		t.Fatal("new SSH key could not create a fresh local device", err)
+	}
+	t.Cleanup(func() { _ = recoveredBob.Close() })
+	newFingerprint, err := alice.Fingerprint(f.ctx, "bob")
+	if err != nil || newFingerprint != recoveredBob.SelfFingerprint() || newFingerprint == bobFingerprint {
+		t.Fatal("recovered device identity was not rotated", err)
+	}
+	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "after-recovery-unverified", Body: "blocked"}); err == nil {
+		t.Fatal("sent to a changed identity without new verification")
+	}
+	if err = alice.Reverify(f.ctx, direct.ID, "bob", newFingerprint); err != nil {
+		t.Fatal("could not re-verify recovered peer", err)
+	}
+	if err = recoveredBob.Verify(f.ctx, "alice", aliceFingerprint); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "after-recovery", Body: "nueva sesión"}); err != nil {
+		t.Fatal("new Olm session failed after recovery", err)
+	}
+	newMessages, err := recoveredBob.Sync(f.ctx, direct.ID, "alice")
+	if err != nil || len(newMessages.Messages) != 1 || newMessages.Messages[0].Body != "nueva sesión" {
+		t.Fatal("new device could not decrypt after recovery", err)
+	}
+	oldAndNew, err := alice.Sync(f.ctx, direct.ID, "bob")
+	if err != nil || len(oldAndNew.Messages) != 4 || oldAndNew.Messages[2].Body != "[mensaje anterior al cambio de identidad; no disponible]" {
+		t.Fatal("old unread ciphertext was not marked unavailable after rotation", err)
+	}
 }

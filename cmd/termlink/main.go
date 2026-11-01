@@ -66,12 +66,12 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending":
 	case "version":
 		fmt.Println("Karatty " + version)
 		return nil
 	default:
-		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, metrics, delete-account, version")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, reverify, discard-pending, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -186,7 +186,7 @@ func run() error {
 		_ = c.Logout(end)
 	}()
 	var secure *secureclient.Backend
-	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify")) {
+	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending")) {
 		if command == "register" {
 			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
 		}
@@ -300,6 +300,25 @@ func run() error {
 			return e
 		}
 		fmt.Println("Identidad verificada para", *peer)
+		return nil
+	case "reverify":
+		if *peer == "" || *fingerprint == "" || secure == nil {
+			return errors.New("reverify requires --peer and --fingerprint")
+		}
+		if e := secure.Reverify(ctx, *peer, *fingerprint); e != nil {
+			return e
+		}
+		fmt.Println("Nueva identidad verificada; algunos mensajes antiguos pueden no estar disponibles")
+		return nil
+	case "discard-pending":
+		if *peer == "" || secure == nil {
+			return errors.New("discard-pending requires --peer")
+		}
+		count, e := secure.DiscardPending(ctx, *peer)
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Descartados %d envíos pendientes; comprueba si el servidor ya los recibió.\n", count)
 		return nil
 	case "decline", "block", "unblock":
 		if *peer == "" {

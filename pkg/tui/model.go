@@ -40,12 +40,17 @@ type identityResult struct {
 	peer        string
 	fingerprint string
 	verified    bool
+	reverified  bool
+	discarded   bool
+	count       int
 	err         error
 }
 type identityBackend interface {
 	Fingerprint(context.Context, string) (string, error)
 	Verify(context.Context, string, string) error
 	SelfFingerprint() string
+	Reverify(context.Context, string, string) error
+	DiscardPending(context.Context, string) (int, error)
 }
 type Model struct {
 	ctx           context.Context
@@ -132,14 +137,14 @@ func (m *Model) directCommand() tea.Cmd {
 		m.status = "Tu huella local está lista para comparar."
 		return nil
 	}
-	if action == "/fingerprint" || action == "/verify" {
+	if action == "/fingerprint" || action == "/verify" || action == "/reverify" || action == "/discardpending" {
 		secure, ok := m.backend.(identityBackend)
 		if !ok {
 			m.status = "La verificación de identidad requiere la TUI local cifrada."
 			return nil
 		}
-		if (action == "/fingerprint" && len(args) != 2) || (action == "/verify" && len(args) != 3) || !security.Identifier(args[1]) {
-			m.status = "Usa /fingerprint USUARIO o /verify USUARIO HUELLA"
+		if ((action == "/fingerprint" || action == "/discardpending") && len(args) != 2) || ((action == "/verify" || action == "/reverify") && len(args) != 3) || !security.Identifier(args[1]) {
+			m.status = "Usa /fingerprint, /verify, /reverify o /discardpending USUARIO"
 			return nil
 		}
 		m.busy = true
@@ -148,9 +153,13 @@ func (m *Model) directCommand() tea.Cmd {
 		return func() tea.Msg {
 			ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
 			defer cancel()
-			result := identityResult{peer: args[1], verified: action == "/verify"}
+			result := identityResult{peer: args[1], verified: action == "/verify", reverified: action == "/reverify", discarded: action == "/discardpending"}
 			if result.verified {
 				result.err = secure.Verify(ctx, args[1], args[2])
+			} else if result.reverified {
+				result.err = secure.Reverify(ctx, args[1], args[2])
+			} else if result.discarded {
+				result.count, result.err = secure.DiscardPending(ctx, args[1])
 			} else {
 				result.fingerprint, result.err = secure.Fingerprint(ctx, args[1])
 			}
@@ -304,6 +313,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.identityView = ""
 			m.status = "Identidad verificada para " + v.peer
 			return m, m.list()
+		}
+		if v.reverified {
+			m.identityView = ""
+			m.status = "Nueva identidad verificada; mensajes antiguos sin descifrar pueden no estar disponibles."
+			return m, m.list()
+		}
+		if v.discarded {
+			m.status = fmt.Sprintf("Descartados %d envíos pendientes; revisa si el servidor ya los recibió.", v.count)
+			return m, nil
 		}
 		m.identityView = "Huella de " + v.peer + ":\n" + v.fingerprint + "\n\nCompárala con esa persona por otro medio. Luego escribe /verify " + v.peer + " HUELLA"
 		m.renderMessages()
