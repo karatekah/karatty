@@ -192,6 +192,53 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	}
 	return err
 }
+
+// DeleteAccount removes this user's data while preserving messages written by
+// other members. Their direct conversations become read-only archives.
+func (s *Service) DeleteAccount(ctx context.Context, token string) error {
+	if len(token) != 48 {
+		return security.ErrUnauthorized
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var uid string
+	if err = tx.QueryRow(ctx, "SELECT user_id FROM sessions WHERE token_hash=$1", security.Hash(token)).Scan(&uid); err != nil {
+		return security.ErrUnauthorized
+	}
+	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(872092634,hashtext($1))", uid); err != nil {
+		return err
+	}
+	if _, err = Principal(ctx, tx, token); err != nil {
+		return err
+	}
+	var username string
+	if err = tx.QueryRow(ctx, "SELECT username FROM users WHERE id=$1 FOR UPDATE", uid).Scan(&username); err != nil {
+		return err
+	}
+	queries := []struct {
+		sql  string
+		args []any
+	}{
+		{`UPDATE conversations SET direct_pair=NULL,name='Cuenta eliminada',closed_at=now()
+			WHERE kind='direct' AND (split_part(direct_pair,':',1)=$1 OR split_part(direct_pair,':',2)=$1)`, []any{uid}},
+		{`DELETE FROM auth_challenges WHERE username=$1 OR public_key IN (SELECT public_key FROM ssh_keys WHERE user_id=$2)`, []any{username, uid}},
+		{`DELETE FROM messages WHERE sender_id=$1`, []any{uid}},
+		{`DELETE FROM memberships WHERE user_id=$1`, []any{uid}},
+		{`DELETE FROM sessions WHERE user_id=$1`, []any{uid}},
+		{`DELETE FROM ssh_keys WHERE user_id=$1`, []any{uid}},
+		{`DELETE FROM users WHERE id=$1`, []any{uid}},
+	}
+	for _, query := range queries {
+		if _, err = tx.Exec(ctx, query.sql, query.args...); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Service) Invite(ctx context.Context, conversation string, uses int, ttl time.Duration) (string, error) {
 	if uses < 1 || uses > 100 || ttl <= 0 || ttl > 30*24*time.Hour {
 		return "", security.ErrInvalid

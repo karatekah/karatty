@@ -47,6 +47,7 @@ func run() error {
 	id := flags.String("id", "", "stable ID for a send retry")
 	messageStdin := flags.Bool("message-stdin", false, "send: read one message from standard input")
 	peer := flags.String("peer", "", "username for direct chat")
+	confirmDelete := flags.Bool("confirm-delete", false, "delete this account, keys, sessions and own messages")
 	var args []string
 	if len(os.Args) > 2 {
 		args = os.Args[2:]
@@ -55,9 +56,9 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "login", "list", "history", "send", "direct", "metrics":
+	case "chat", "register", "login", "list", "history", "send", "direct", "metrics", "delete-account":
 	default:
-		return errors.New("commands: chat, register, login, list, history, send, direct, metrics")
+		return errors.New("commands: chat, register, login, list, history, send, direct, metrics, delete-account")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -135,6 +136,9 @@ func run() error {
 		return err
 	}
 	defer func() {
+		if c.Token == "" {
+			return
+		}
 		end, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
 		_ = c.Logout(end)
@@ -171,6 +175,11 @@ func run() error {
 		}
 		_, e = fmt.Print(out)
 		return e
+	case "delete-account":
+		if !*confirmDelete {
+			return errors.New("delete-account requires --confirm-delete")
+		}
+		return c.DeleteAccount(ctx)
 	case "send":
 		if *id == "" {
 			return errors.New("send requires --id (reuse it when retrying)")
