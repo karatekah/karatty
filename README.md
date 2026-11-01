@@ -10,7 +10,7 @@ Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. Ambos acces
 
 ## Ejecutar
 
-Sigue la [guía local para Windows, Linux y macOS](docs/quickstart.md). Incluye PostgreSQL con Docker, certificados TLS locales, creación de invitaciones, acceso nativo/SSH y prueba de un tercero sin membresía. El entorno completo en Docker se comprueba en CI. No hay servidor público ni servicios contratados.
+Sigue la [guía local para Windows, Linux y macOS](docs/quickstart.md). Incluye PostgreSQL con Docker, certificados TLS locales, creación de invitaciones, acceso nativo/SSH y prueba de un tercero sin membresía. CI comprueba el arranque en Docker y el flujo HTTPS con el cliente nativo; las pruebas de integración cubren SSH por separado. No hay servidor público ni servicios contratados.
 
 ```sh
 go build ./cmd/...
@@ -23,7 +23,7 @@ go test -count=1 ./...
 
 - Invitaciones con caducidad/usos y registro con prueba de posesión Ed25519; desafío de un solo uso, sesión temporal y revocación administrativa.
 - Canales asignados por invitación y chats directos; autorización por sesión/clave/usuario/membresía en cada operación.
-- Mensajes persistentes, secuencia transaccional por conversación, ACK de commit, deduplicación y conflicto al cambiar el contenido de un reintento.
+- Mensajes persistentes, secuencia transaccional por conversación, ACK de commit y deduplicación durante 30 días, con conflicto al cambiar el contenido de un reintento dentro de ese plazo.
 - Historial paginado y eventos WSS con reconexión por secuencia; gateway Wish v2 autenticado al mismo núcleo y TUI Bubble Tea v2/Bubbles v2 compartida.
 - Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.
 - Pruebas de integración con PostgreSQL real, TLS, WebSocket, cliente ejecutable y SSH con PTY; CI con detector de carreras en Linux, compilación Windows/Linux/macOS y prueba Docker.

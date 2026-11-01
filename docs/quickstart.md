@@ -1,6 +1,6 @@
 # Entorno local
 
-Requisitos: Go 1.27.3, PostgreSQL 17.11 (o Docker con Compose) y cliente OpenSSH. Compila sin CGo. Las dependencias exactas están en go.mod/go.sum. No se instala ni se publica un servidor remoto.
+Requisitos: Go 1.27.3, PostgreSQL 17.11 (o Docker con Compose) y cliente OpenSSH. Los ejemplos levantan PostgreSQL con Docker; si ya tienes una instancia nativa, omite `docker compose ... up -d db` y ajusta `DATABASE_URL` a su host, puerto, usuario, contraseña y base. Compila sin CGo. Las dependencias exactas están en go.mod/go.sum. No se instala ni se publica un servidor remoto.
 
 ## Windows / PowerShell
 
@@ -18,7 +18,7 @@ go run ./scripts/devcert.go
 ./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
 ```
 
-El servidor aplica la migración inicial al arrancar. En otra PowerShell con el mismo DATABASE_URL:
+El servidor aplica las migraciones de esquema al arrancar. En otra PowerShell con el mismo DATABASE_URL:
 
 ```powershell
 $channel = ./bin/server.exe --channel general
@@ -34,7 +34,7 @@ $inviteEve | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-ce
 ./bin/termlink.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
-Las frases de claves cifradas se piden de forma oculta. Los permisos de Windows deben permitir acceso a las claves solo a su propietario; no se cambian ACL globales. Las invitaciones se pasan mediante variables/entrada estándar para no introducirlas literalmente en el historial de comandos. No compartirlas en logs.
+Las frases de claves cifradas se piden de forma oculta en la terminal, incluso al pasar una invitación por entrada estándar. Los permisos de Windows deben permitir acceso a las claves solo a su propietario; no se cambian ACL globales. Las invitaciones se pasan mediante variables/entrada estándar para no introducirlas literalmente en el historial de comandos. No compartirlas en logs.
 
 En otra terminal, Bob entra por SSH:
 
@@ -45,7 +45,7 @@ ssh -t -p 2222 -i .local/bob chat@127.0.0.1
 
 Compara la huella mostrada por SSH con la del host local antes de aceptarla. Conserva la clave de host entre reinicios. No desactives su verificación. `Ctrl+C` sale; `Tab` cambia de conversación; `PgUp/PgDn` desplaza el historial conservado en pantalla; `Ctrl+R` reintenta un envío sin confirmar con el mismo ID; `Esc` lo devuelve a edición; `Ctrl+L` vuelve a cargar conversaciones y sincroniza desde secuencia cero.
 
-El cliente conserva como máximo 500 mensajes en pantalla; el historial completo se consulta por páginas:
+El cliente conserva como máximo 500 mensajes en pantalla; el historial disponible de los últimos 30 días se consulta por páginas:
 
 ```powershell
 ./bin/termlink.exe history --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
