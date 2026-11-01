@@ -58,13 +58,13 @@ Solicitar un chat directo: `karatty direct --peer bob` con los mismos flags de c
 
 ## Ensayo local del registro público
 
-El modo `server --public-signup` necesita `RESEND_API_KEY` y `TERMLINK_MAIL_FROM` en el entorno del servidor. El remitente debe pertenecer a un dominio verificado en el proveedor. Este modo activa automáticamente la purga horaria de mensajes vencidos; el registro por invitación queda desactivado. Después de configurar el remitente y arrancar el servidor con `--public-signup`, crea una clave Ed25519 y ejecuta:
+Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-host-key`. Este modo permite registro con seudónimo y clave Ed25519, sin correo ni invitación; activa automáticamente la purga horaria de mensajes vencidos. Todavía no hay E2EE: úsalo solo en desarrollo local. Después de crear una clave Ed25519, ejecuta:
 
 ```powershell
-./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --email alice@example.com
+./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --public
 ```
 
-El cliente solicita el código recibido por correo con entrada oculta. Al terminar muestra un código de recuperación una sola vez: guárdalo fuera del equipo con la clave SSH. Si se pierde esa clave, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --email alice@example.com` con los mismos flags de conexión; pedirá el código del correo y el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código de recuperación nuevo. Si se pierden tanto el acceso al correo como el código de recuperación, la cuenta no puede recuperarse por este flujo.
+El cliente muestra un código de recuperación una sola vez: guárdalo fuera del equipo. Si se pierde la clave SSH, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --username alice` con los mismos flags de conexión. El cliente pedirá el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código nuevo. Si se pierden tanto la clave SSH como el código, la cuenta no puede recuperarse.
 
 ## Linux y macOS
 

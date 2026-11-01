@@ -1,12 +1,12 @@
 # Operación propuesta para la alpha pública
 
-Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El dominio, correo público y remitente deben fijarse antes de ejecutar el despliegue.
+Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El dominio y un correo público para soporte y privacidad deben fijarse antes de ejecutar el despliegue. Las cuentas no requieren correo.
 
 Nombre de trabajo: **Karatty**. El 1 de noviembre de 2026, el buscador oficial [Busca tu marca](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró **0 resultados en búsqueda precisa** de marcas vigentes para «Karatty» en las clases 9, 38 y 42. La búsqueda amplia devolvió 200 resultados. Esta consulta es preliminar; falta revisar posibles similitudes relevantes y confirmar dominio y marca antes de publicar.
 
 ## Infraestructura y presupuesto
 
-Una instancia pequeña [DigitalOcean Basic](https://www.digitalocean.com/pricing/droplets) (1 vCPU, 2 GiB RAM, 50 GB SSD) cuesta $12/mes según su tarifa actual. PostgreSQL y el servidor Go pueden compartirla durante una alpha de capacidad controlada. [Cloudflare R2](https://developers.cloudflare.com/r2/pricing/) ofrece 10 GB/mes de almacenamiento Standard gratis y [Resend](https://www.resend.com/pricing) ofrece 3000 correos/mes con máximo 100/día en su plan gratuito. El código limita el envío a 80/día UTC. El dominio `.dev` se paga anualmente; verifica precio y disponibilidad antes de comprar. Si la base o las copias superan los límites gratuitos, no amplíes capacidad automáticamente: revisa uso y presupuesto.
+Una instancia pequeña [DigitalOcean Basic](https://www.digitalocean.com/pricing/droplets) (1 vCPU, 2 GiB RAM, 50 GB SSD) cuesta $12/mes según la tarifa consultada; verifica el precio antes de contratar. PostgreSQL y el servidor Go pueden compartirla durante una alpha de capacidad controlada. [Cloudflare R2](https://developers.cloudflare.com/r2/pricing/) ofrece una cuota gratuita de almacenamiento Standard; verifica sus límites actuales antes de contratar. El dominio `.dev` se paga anualmente; verifica precio y disponibilidad antes de comprar. Si la base o las copias superan los límites gratuitos, revisa uso y presupuesto antes de ampliar capacidad.
 
 ## Respaldos
 
@@ -16,14 +16,15 @@ Configura también en R2 una [regla de ciclo de vida](https://developers.cloudfl
 
 Antes de abrir el servicio, sube un respaldo y restaura uno en una base vacía cuyo nombre comience con `termlink_restore_`. En un equipo con la clave privada `age`, configura `BACKUP_OBJECT`, `AGE_IDENTITY_FILE` y `RESTORE_DATABASE_URL`, y ejecuta [restore-check.sh](../scripts/restore-check.sh). El script rehúsa bases con otro nombre o tablas existentes. Confirma que las filas esperadas se restauraron y que el servicio puede leerlas. Repite la restauración regularmente y tras cambios de esquema. Nunca guardes la identidad privada `age` en el bucket ni en el VPS.
 
-Ensayo local del 31 de octubre de 2026: `backup.sh` cifró y subió una copia al backend local de `rclone`; `restore-check.sh` la restauró en una base desechable y verificó 3 usuarios y 9 mensajes. Una copia marcada con cinco días de antigüedad se eliminó al ejecutar el respaldo siguiente. Este ensayo no verifica R2, su regla de ciclo de vida ni la entrega real de correo.
+Ensayo local del 31 de octubre de 2026: `backup.sh` cifró y subió una copia al backend local de `rclone`; `restore-check.sh` la restauró en una base desechable y verificó 3 usuarios y 9 mensajes. Una copia marcada con cinco días de antigüedad se eliminó al ejecutar el respaldo siguiente. Este ensayo no verifica R2 ni su regla de ciclo de vida.
 
 ## Puertas de publicación
 
 1. Elegir nombre y comprobar marca/dominio; contratar el `.dev` y preparar correo público de soporte y privacidad.
-2. Crear VPS y bucket privados, configurar DNS, TLS, SSH y remitente de correo verificado. Mantener credenciales fuera del repositorio.
-3. Completar y revisar el [borrador de privacidad](privacy-draft.md), publicar política y condiciones con identidad del titular, contacto, proveedor de correo, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
-4. Probar registro, recepción real de correo, recuperación, bloqueo, borrado de cuenta, purga horaria, respaldo, restauración y borrado remoto en el entorno contratado.
-5. Seguir la [guía de ejecutables](release.md): publicar los binarios y hashes verificables en un canal público, conservar el repositorio fuente privado y hacer una prueba de instalación externa.
+2. Implementar y revisar E2EE para los directos 1:1 en la TUI local. Impedir mensajes en claro, canales y TUI SSH remota en el servicio público. Verificar las claves de los contactos y ensayar pérdida/rotación de claves.
+3. Crear VPS y bucket privados, configurar DNS, TLS y acceso administrativo. Mantener credenciales fuera del repositorio.
+4. Completar y revisar el [borrador de privacidad](privacy-draft.md), publicar política y condiciones con identidad y contacto del titular, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
+5. Probar registro seudónimo, recuperación con código, aceptación de directos, bloqueo, borrado de cuenta, purga horaria, respaldo, restauración y borrado remoto en el entorno contratado.
+6. Seguir la [guía de ejecutables](release.md): publicar los binarios y hashes verificables en un canal público, conservar el repositorio fuente privado y hacer una prueba de instalación externa.
 
 No anuncies la alpha hasta que estas comprobaciones estén registradas con fecha y resultado.

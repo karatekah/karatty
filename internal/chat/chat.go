@@ -13,9 +13,10 @@ import (
 )
 
 type Service struct {
-	DB       *pgxpool.Pool
-	Sends    *security.Limiter
-	Requests *security.Limiter
+	DB         *pgxpool.Pool
+	Sends      *security.Limiter
+	Requests   *security.Limiter
+	DirectOnly bool
 }
 
 func New(db *pgxpool.Pool) *Service {
@@ -46,7 +47,7 @@ func (s *Service) List(ctx context.Context, token string) ([]protocol.Conversati
 		ELSE c.name END,
 		c.kind,c.closed_at IS NOT NULL
 		FROM conversations c JOIN memberships m ON m.conversation_id=c.id
-		WHERE m.user_id=$1 ORDER BY c.name,c.id LIMIT 100 FOR SHARE OF m`, uid)
+		WHERE m.user_id=$1 AND ($2=false OR c.kind='direct') ORDER BY c.name,c.id LIMIT 100 FOR SHARE OF m`, uid, s.DirectOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +82,12 @@ func (s *Service) History(ctx context.Context, token, conv string, after int64, 
 	}
 	if err = member(ctx, tx, uid, conv); err != nil {
 		return page, err
+	}
+	if s.DirectOnly {
+		var kind string
+		if err = tx.QueryRow(ctx, "SELECT kind FROM conversations WHERE id=$1", conv).Scan(&kind); err != nil || kind != "direct" {
+			return page, security.ErrForbidden
+		}
 	}
 	rows, err := tx.Query(ctx, `SELECT m.id,m.client_id,m.conversation_id,m.sender_id,u.username,m.seq,m.body,m.created_at FROM messages m JOIN users u ON u.id=m.sender_id WHERE conversation_id=$1 AND seq>$2 AND m.created_at >= now() - interval '720 hours' ORDER BY seq LIMIT $3`, conv, after, limit)
 	if err != nil {
@@ -118,12 +125,16 @@ func (s *Service) Send(ctx context.Context, token, conv string, r protocol.Send)
 	// Shared lock order with membership revocation: conversation, then membership.
 	var seq int64
 	var closed bool
-	err = tx.QueryRow(ctx, "SELECT next_seq,closed_at IS NOT NULL FROM conversations WHERE id=$1 FOR UPDATE", conv).Scan(&seq, &closed)
+	var kind string
+	err = tx.QueryRow(ctx, "SELECT next_seq,closed_at IS NOT NULL,kind FROM conversations WHERE id=$1 FOR UPDATE", conv).Scan(&seq, &closed, &kind)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return m, security.ErrForbidden
 	}
 	if err != nil {
 		return m, err
+	}
+	if s.DirectOnly && kind != "direct" {
+		return m, security.ErrForbidden
 	}
 	if err = member(ctx, tx, uid, conv); err != nil {
 		return m, err
