@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"time"
 
@@ -68,11 +69,9 @@ func run() error {
 	signer, err := ssh.ParsePrivateKey(raw)
 	var missing *ssh.PassphraseMissingError
 	if errors.As(err, &missing) {
-		fmt.Fprint(os.Stderr, "Frase de la clave SSH: ")
-		pass, e := term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stderr)
+		pass, e := readSecret("Frase de la clave SSH: ")
 		if e != nil {
-			return errors.New("cannot read key passphrase")
+			return errors.New("cannot read key passphrase; use an interactive terminal")
 		}
 		signer, err = ssh.ParsePrivateKeyWithPassphrase(raw, pass)
 		for i := range pass {
@@ -117,9 +116,7 @@ func run() error {
 				return errors.New("cannot read invitation")
 			}
 		} else {
-			fmt.Fprint(os.Stderr, "Invitación (entrada oculta): ")
-			b, e := term.ReadPassword(int(os.Stdin.Fd()))
-			fmt.Fprintln(os.Stderr)
+			b, e := readSecret("Invitación (entrada oculta): ")
 			if e != nil {
 				return errors.New("use a terminal or --invitation-stdin")
 			}
@@ -184,9 +181,7 @@ func run() error {
 			b, e = io.ReadAll(io.LimitReader(os.Stdin, 4098))
 			b = []byte(strings.TrimSuffix(strings.TrimSuffix(string(b), "\n"), "\r"))
 		} else {
-			fmt.Fprint(os.Stderr, "Mensaje: ")
-			b, e = term.ReadPassword(int(os.Stdin.Fd()))
-			fmt.Fprintln(os.Stderr)
+			b, e = readSecret("Mensaje: ")
 		}
 		if e != nil {
 			return e
@@ -199,4 +194,26 @@ func run() error {
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 	return nil
+}
+
+// readSecret uses the controlling terminal when stdin carries an invitation or
+// a message from a pipe. The secret is never read from that pipe by accident.
+func readSecret(prompt string) ([]byte, error) {
+	input := os.Stdin
+	if !term.IsTerminal(int(input.Fd())) {
+		name := "/dev/tty"
+		if runtime.GOOS == "windows" {
+			name = "CONIN$"
+		}
+		console, err := os.OpenFile(name, os.O_RDWR, 0)
+		if err != nil {
+			return nil, err
+		}
+		defer console.Close()
+		input = console
+	}
+	fmt.Fprint(os.Stderr, prompt)
+	secret, err := term.ReadPassword(int(input.Fd()))
+	fmt.Fprintln(os.Stderr)
+	return secret, err
 }

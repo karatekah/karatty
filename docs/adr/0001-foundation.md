@@ -6,7 +6,7 @@ Un módulo Go con tres ejecutables: API, gateway SSH y cliente. El gateway auten
 
 PostgreSQL conserva usuarios, claves públicas, sesiones, invitaciones, desafíos de autenticación, conversaciones, membresías y mensajes. No se crean tablas devices/receipts sin uso: ACK de persistencia se expresa mediante la respuesta del mensaje y su ID; confirmaciones de lectura y dispositivos quedan pendientes.
 
-El servidor bloquea la conversación para asignar una secuencia transaccional. La unicidad por conversación/remitente/ID del cliente deduplica reintentos. El mismo ID con otro contenido produce conflicto. No se utiliza el reloj del cliente.
+El servidor bloquea la conversación para asignar una secuencia transaccional. La unicidad por conversación/remitente/ID del cliente deduplica reintentos mientras se conserva el mensaje, durante 30 días. El mismo ID con otro contenido produce conflicto dentro de ese plazo. Al vencer, la purga borra también el ID; un envío posterior con ese ID es nuevo. No se utiliza el reloj del cliente.
 
 Tiempo real inicial: lectura incremental del registro durable cada 250 ms mediante WSS o adaptador de núcleo. Cada lote reevalúa sesión, clave, usuario y membresía. Esto evita perder eventos entre historial y suscripción, admite varios procesos y no exige Redis. Coste: consultas periódicas y hasta 250 ms de latencia; medir antes de añadir LISTEN/NOTIFY.
 
