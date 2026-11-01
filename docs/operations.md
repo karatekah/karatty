@@ -1,6 +1,8 @@
 # Operación propuesta para la alpha pública
 
-Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El nombre, dominio, correo público y remitente deben fijarse antes de ejecutar el despliegue.
+Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El dominio, correo público y remitente deben fijarse antes de ejecutar el despliegue.
+
+Nombre de trabajo: **Karatty**. El 1 de noviembre de 2026, el buscador oficial [Busca tu marca](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró **0 resultados en búsqueda precisa** de marcas vigentes para «Karatty» en las clases 9, 38 y 42. La búsqueda amplia devolvió 200 resultados. Esta consulta es preliminar; falta revisar posibles similitudes relevantes y confirmar dominio y marca antes de publicar.
 
 ## Infraestructura y presupuesto
 
