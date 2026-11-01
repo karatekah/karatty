@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 jobs:
+  crypto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - run: cargo +1.99.1 fmt --manifest-path crypto/Cargo.toml --check
+      - run: cargo +1.99.1 test --locked --manifest-path crypto/Cargo.toml
   test:
     runs-on: ubuntu-latest
     services:
