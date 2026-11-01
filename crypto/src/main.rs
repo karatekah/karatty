@@ -199,6 +199,40 @@ mod tests {
         })
         .unwrap();
         assert_eq!(received["plaintext"], "hola");
+        let second = handle(Request::Encrypt {
+            account: first["account"].clone(),
+            session: Some(first["session"].clone()),
+            peer_identity: None,
+            peer_one_time_key: None,
+            plaintext: "segundo".into(),
+        })
+        .unwrap();
+        let third = handle(Request::Encrypt {
+            account: second["account"].clone(),
+            session: Some(second["session"].clone()),
+            peer_identity: None,
+            peer_one_time_key: None,
+            plaintext: "tercero".into(),
+        })
+        .unwrap();
+        let out_of_order = handle(Request::Decrypt {
+            account: received["account"].clone(),
+            session: Some(received["session"].clone()),
+            sender_identity: serde_json::from_value(alice["identity"]["curve25519"].clone())
+                .unwrap(),
+            message: serde_json::from_value(third["message"].clone()).unwrap(),
+        })
+        .unwrap();
+        assert_eq!(out_of_order["plaintext"], "tercero");
+        let skipped = handle(Request::Decrypt {
+            account: out_of_order["account"].clone(),
+            session: Some(out_of_order["session"].clone()),
+            sender_identity: serde_json::from_value(alice["identity"]["curve25519"].clone())
+                .unwrap(),
+            message: serde_json::from_value(second["message"].clone()).unwrap(),
+        })
+        .unwrap();
+        assert_eq!(skipped["plaintext"], "segundo");
         let replenished = handle(Request::Replenish {
             account: received["account"].clone(),
             one_time_keys: 1,
