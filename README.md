@@ -41,5 +41,6 @@ Faltan la contratación/configuración del proveedor de correo y dominio, la pru
 `cmd/server`, `cmd/ssh-gateway`, `cmd/termlink`; `internal/auth`, `chat`, `storage`, `security`, `transport`; `pkg/tui`, `client`, `protocol`; `migrations`, `tests`, `deployments`, `docs`. Los límites reales de paquetes se explican en el [ADR 0001](docs/adr/0001-foundation.md), y la autenticación en el [ADR 0002](docs/adr/0002-authentication.md).
 
 [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
+[Operación y respaldos para la alpha](docs/operations.md)
 
 Código privado sin licencia pública concedida por este repositorio. La elección de licencia comercial o de distribución es una decisión pendiente del propietario. Las dependencias conservan sus licencias propias.
