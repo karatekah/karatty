@@ -72,7 +72,7 @@ func (s *Service) History(ctx context.Context, token, conv string, after int64, 
 	if err = member(ctx, tx, uid, conv); err != nil {
 		return page, err
 	}
-	rows, err := tx.Query(ctx, `SELECT m.id,m.client_id,m.conversation_id,m.sender_id,u.username,m.seq,m.body,m.created_at FROM messages m JOIN users u ON u.id=m.sender_id WHERE conversation_id=$1 AND seq>$2 ORDER BY seq LIMIT $3`, conv, after, limit)
+	rows, err := tx.Query(ctx, `SELECT m.id,m.client_id,m.conversation_id,m.sender_id,u.username,m.seq,m.body,m.created_at FROM messages m JOIN users u ON u.id=m.sender_id WHERE conversation_id=$1 AND seq>$2 AND m.created_at >= now() - interval '720 hours' ORDER BY seq LIMIT $3`, conv, after, limit)
 	if err != nil {
 		return page, err
 	}
@@ -115,6 +115,11 @@ func (s *Service) Send(ctx context.Context, token, conv string, r protocol.Send)
 		return m, err
 	}
 	if err = member(ctx, tx, uid, conv); err != nil {
+		return m, err
+	}
+	// An expired ID can be reused only after removing its old message in this
+	// transaction. No expired body is returned through the retry ACK.
+	if _, err = tx.Exec(ctx, `DELETE FROM messages WHERE conversation_id=$1 AND sender_id=$2 AND client_id=$3 AND created_at < now() - interval '720 hours'`, conv, uid, r.ClientID); err != nil {
 		return m, err
 	}
 	err = tx.QueryRow(ctx, `SELECT m.id,m.client_id,m.conversation_id,m.sender_id,u.username,m.seq,m.body,m.created_at FROM messages m JOIN users u ON u.id=m.sender_id WHERE conversation_id=$1 AND sender_id=$2 AND client_id=$3`, conv, uid, r.ClientID).Scan(&m.ID, &m.ClientID, &m.ConversationID, &m.SenderID, &m.Username, &m.Seq, &m.Body, &m.CreatedAt)

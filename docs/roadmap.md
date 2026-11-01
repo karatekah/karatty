@@ -2,7 +2,7 @@
 
 Sprint 1: flujo funcional verificable, entorno local y CI. La alpha v0.1 requiere además recuperación, borrado de cuentas, política de datos, restauración de respaldos y revisión de límites operativos. No se abrirá un servicio en este sprint.
 
-Decisión del usuario (2026-10-31): retención de mensajes de **30 días** para la futura alpha. Implementar y verificar purga programada, comunicación al usuario y vencimiento de respaldos antes de activarla. El entorno de desarrollo no borra automáticamente mensajes.
+Decisión del usuario (2026-10-31): retención de mensajes de **30 días** para la futura alpha, con borrado de contenido e identificadores y deduplicación garantizada solo durante ese plazo. El historial ya oculta mensajes vencidos y el servidor dispone de purga por lotes, manual o programada con `--retention-30d`. La programación permanece desactivada por defecto en desarrollo. Antes de activar una alpha faltan comunicación al usuario, vencimiento/restauración de respaldos y pruebas operativas de la programación.
 
 Horizonte original: unas 12 semanas para validar el producto, estimación sin fecha prometida. Público: desarrolladores y equipos técnicos pequeños. v0.2 perfiles, búsqueda y notificaciones; v0.3 archivos e integraciones; v0.4 bots/API; v1.0 organizaciones y facturación. Community/Pro/Teams/self-hosted son hipótesis. Precio, identidad visual y dominio siguen abiertos.
 
