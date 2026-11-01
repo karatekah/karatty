@@ -77,6 +77,7 @@ func run() error {
 	a := &auth.Service{DB: db, PublicSignup: *publicSignup}
 	c := chat.New(db)
 	c.DirectOnly = *publicSignup
+	c.CiphertextOnly = *publicSignup
 	switch {
 	case *channel != "":
 		if *publicSignup {

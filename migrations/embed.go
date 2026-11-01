@@ -22,3 +22,6 @@ var AnonymousIdentity string
 
 //go:embed 007_e2ee_keys.sql
 var E2EEKeys string
+
+//go:embed 008_ciphertext_envelopes.sql
+var CiphertextEnvelopes string
