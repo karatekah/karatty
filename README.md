@@ -1,12 +1,12 @@
 # Karatty (alpha en preparación)
 
-Mensajería propia desde la terminal, con un cliente nativo y acceso SSH. Repositorio privado de trabajo de karatekah. Sin integración ni código de WhatsApp o wacon-mcp.
+Mensajería desde una TUI instalable. La primera alpha se limitará a chats directos 1:1 que requieren aceptación, registro seudónimo sin correo y cifrado de extremo a extremo. Este repositorio sigue privado mientras se completa esa versión; el código, la documentación y los ejecutables se publicarán juntos cuando pase las comprobaciones de lanzamiento.
 
 ## Sprint 1
 
-Objetivo: dos usuarios invitados conversan entre SSH y el cliente instalable, salen y recuperan el historial desde PostgreSQL; un tercero sin membresía no puede leer, enviar ni suscribirse.
+El primer sprint demostró que dos usuarios invitados podían conversar entre SSH y el cliente instalable, salir y recuperar el historial desde PostgreSQL; un tercero sin membresía no podía leer, enviar ni suscribirse. Ahora se prepara la alpha pública con un alcance más pequeño y E2EE obligatorio.
 
-Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. El prototipo actual ofrece TUI local y por SSH, con HTTPS/WSS y SSH para el transporte. **El servidor todavía puede leer los mensajes; no hay E2EE y esta versión no debe abrirse al público.** La alpha acordada exigirá E2EE en la TUI local para chats directos 1:1; SSH remoto y grupos quedan para después.
+Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. El prototipo actual ofrece TUI local y por SSH, con HTTPS/WSS y SSH para el transporte. **El servidor todavía puede leer los mensajes; no hay E2EE y esta versión no debe abrirse al público.** La alpha usará solo la TUI local para chats directos 1:1; SSH remoto y grupos quedan para después.
 
 ## Ejecutar
 
@@ -30,7 +30,7 @@ go test -count=1 ./...
 - Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.
 - Pruebas de integración con PostgreSQL real, TLS, WebSocket, cliente ejecutable y SSH con PTY; CI con detector de carreras en Linux, compilación Windows/Linux/macOS y prueba Docker.
 
-El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI; después SSH no requiere instalar Karatty. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
+El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI. En el prototipo, SSH permite entrar sin instalar el cliente; esa vía no formará parte de la alpha. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
 
 ## Pendiente antes de abrir la alpha
 
@@ -40,9 +40,9 @@ Faltan E2EE verificable en chats directos 1:1, eliminar el acceso a mensajes en 
 
 `cmd/server`, `cmd/ssh-gateway`, `cmd/termlink`; `internal/auth`, `chat`, `storage`, `security`, `transport`; `pkg/tui`, `client`, `protocol`; `migrations`, `tests`, `deployments`, `docs`. Los límites reales de paquetes se explican en el [ADR 0001](docs/adr/0001-foundation.md), y la autenticación en el [ADR 0002](docs/adr/0002-authentication.md).
 
-[Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
+[Arquitectura y tecnologías](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
 [Operación y respaldos para la alpha](docs/operations.md)
 [Borrador de privacidad (no publicable aún)](docs/privacy-draft.md)
-[Preparación de ejecutables públicos](docs/release.md)
+[Preparación de la publicación](docs/release.md) · [Contribuir](CONTRIBUTING.md)
 
-Código privado sin licencia pública concedida por este repositorio. La elección de licencia comercial o de distribución es una decisión pendiente del propietario. Las dependencias conservan sus licencias propias.
+La [guía de publicación](docs/release.md) reúne las comprobaciones para abrir este repositorio y distribuir una versión verificable. Aún no se ha elegido una licencia pública; hasta entonces, la visibilidad futura del código no concede permisos de reutilización. Las dependencias conservan sus licencias propias.

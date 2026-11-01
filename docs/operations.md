@@ -25,6 +25,6 @@ Ensayo local del 31 de octubre de 2026: `backup.sh` cifró y subió una copia al
 3. Crear VPS y bucket privados, configurar DNS, TLS y acceso administrativo. Mantener credenciales fuera del repositorio.
 4. Completar y revisar el [borrador de privacidad](privacy-draft.md), publicar política y condiciones con identidad y contacto del titular, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
 5. Probar registro seudónimo, recuperación con código, aceptación de directos, bloqueo, borrado de cuenta, purga horaria, respaldo, restauración y borrado remoto en el entorno contratado.
-6. Seguir la [guía de ejecutables](release.md): publicar los binarios y hashes verificables en un canal público, conservar el repositorio fuente privado y hacer una prueba de instalación externa.
+6. Seguir la [guía de publicación](release.md): revisar historial, licencia y documentación; publicar el código fuente y los binarios con hashes en la misma versión y hacer una prueba de instalación externa.
 
 No anuncies la alpha hasta que estas comprobaciones estén registradas con fecha y resultado.
