@@ -185,6 +185,22 @@ func Principal(ctx context.Context, tx pgx.Tx, token string) (string, error) {
 	return uid, err
 }
 
+// PrincipalKey returns the active SSH key bound to the current session.
+func PrincipalKey(ctx context.Context, tx pgx.Tx, token string) (string, string, string, error) {
+	if len(token) != 48 {
+		return "", "", "", security.ErrUnauthorized
+	}
+	var uid, kid, publicKey string
+	err := tx.QueryRow(ctx, `SELECT s.user_id,s.key_id,k.public_key FROM sessions s
+		JOIN users u ON u.id=s.user_id JOIN ssh_keys k ON k.id=s.key_id
+		WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()
+		AND k.revoked_at IS NULL AND u.active FOR SHARE OF s,u,k`, security.Hash(token)).Scan(&uid, &kid, &publicKey)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", "", security.ErrUnauthorized
+	}
+	return uid, kid, publicKey, err
+}
+
 // Verify checks an active session for endpoints without a conversation operation.
 func (s *Service) Verify(ctx context.Context, token string) error {
 	tx, err := s.DB.Begin(ctx)
@@ -251,6 +267,7 @@ func (s *Service) DeleteAccount(ctx context.Context, token string) error {
 		{`DELETE FROM messages WHERE sender_id=$1`, []any{uid}},
 		{`DELETE FROM memberships WHERE user_id=$1`, []any{uid}},
 		{`DELETE FROM sessions WHERE user_id=$1`, []any{uid}},
+		{`DELETE FROM e2ee_devices WHERE user_id=$1`, []any{uid}},
 		{`DELETE FROM ssh_keys WHERE user_id=$1`, []any{uid}},
 		{`DELETE FROM users WHERE id=$1`, []any{uid}},
 	}

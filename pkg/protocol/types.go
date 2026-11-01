@@ -44,6 +44,25 @@ type DirectRequest struct {
 	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`
 }
+type OneTimeKey struct {
+	Key       string `json:"key"`
+	Signature string `json:"signature"`
+}
+type DeviceUpload struct {
+	IdentityEd    string       `json:"identity_ed"`
+	IdentityCurve string       `json:"identity_curve"`
+	SSHSignature  []byte       `json:"ssh_signature"`
+	OneTimeKeys   []OneTimeKey `json:"one_time_keys"`
+}
+type DeviceBundle struct {
+	UserID        string      `json:"user_id"`
+	Username      string      `json:"username"`
+	SSHKey        string      `json:"ssh_key"`
+	IdentityEd    string      `json:"identity_ed"`
+	IdentityCurve string      `json:"identity_curve"`
+	SSHSignature  []byte      `json:"ssh_signature"`
+	OneTimeKey    *OneTimeKey `json:"one_time_key,omitempty"`
+}
 type Send struct {
 	ClientID string `json:"client_id"`
 	Body     string `json:"body"`

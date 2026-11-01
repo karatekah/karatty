@@ -16,11 +16,16 @@ JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Au
 | Rechazar una solicitud entrante | DELETE /v1/direct/requests/{username} |
 | Bloquear usuario y cerrar chat directo | PUT /v1/direct/blocks/{username} |
 | Desbloquear usuario | DELETE /v1/direct/blocks/{username} |
+| Subir identidad Olm y claves públicas de un solo uso firmadas (experimental) | POST /v1/e2ee/device |
+| Leer identidad pública del contacto tras aceptar el directo (experimental) | GET /v1/e2ee/peer/{username} |
+| Consumir una clave pública de un solo uso del contacto (experimental) | POST /v1/e2ee/peer/{username}/claim |
 | Historial ascendente por secuencia | GET /v1/conversations/{id}/messages?after=0&limit=100 |
 | Envío con client_id estable y body | POST /v1/conversations/{id}/messages |
 | Eventos por secuencia, cabecera Bearer | WSS /v1/conversations/{id}/events?after=0 |
 
 `protocol.Message` es también el ACK de persistencia: ID del servidor, client_id, conversación, remitente, username, seq, body y created_at. No significa leído ni entregado a todas las sesiones. Se devuelve después del commit. Dos remitentes pueden usar el mismo client_id; un remitente reutiliza exactamente el mismo ID al reintentar el mismo contenido en la misma conversación. La deduplicación está garantizada durante los 30 días de retención del mensaje. Al purgar un mensaje vencido se borran su contenido e identificadores; un envío posterior con el mismo client_id se considera nuevo. La purga física se ejecuta manualmente o al activar `server --retention-30d`.
+
+Los endpoints `e2ee` son una pieza **experimental** del [ADR 0003](adr/0003-e2ee-1to1.md). `POST /device` exige una firma de la clave SSH de sesión sobre `KARATTY-E2EE-IDENTITY-v1\nUSER_ID\nED25519\nCURVE25519`; cada clave de un solo uso exige firma de la identidad Olm Ed25519 sobre `KARATTY-OTK-v1\nCURVE25519\nONE_TIME_KEY`. Las claves se codifican como base64 estándar sin relleno. La identidad no puede sustituirse silenciosamente; la recuperación de cuenta la elimina. Solo un miembro de un directo aceptado puede consultar la identidad del otro y consumir una clave; una clave consumida no puede volver a activarse aunque se suba de nuevo. **Estos endpoints no cifran los mensajes:** `body` sigue siendo texto en claro y el cliente todavía no verifica la identidad ni guarda el ratchet.
 
 `Page` contiene messages y next. Durante la sesión, el cliente guarda en memoria la última secuencia entregada y reconecta desde ella; descarta eventos ya vistos. La TUI sincroniza desde cero al abrirse de nuevo. El servidor asigna secuencias bajo bloqueo de conversación, en la transacción del INSERT. La purga y la eliminación de cuentas pueden dejar huecos en la numeración; next_seq no retrocede. El historial no entrega mensajes con más de 720 horas, incluso antes de la purga física. Historial y suscripción se autorizan incluso si el lote está vacío. No hay cola ilimitada en memoria: cada consulta devuelve 100 mensajes; consumidor lento agota el timeout de escritura y reconecta al registro durable.
 

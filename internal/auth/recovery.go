@@ -88,6 +88,9 @@ func (s *Service) CompleteRecovery(ctx context.Context, in protocol.RecoveryProo
 		return protocol.RecoveryResult{}, security.ErrUnauthorized
 	}
 	nextCode := security.ID()
+	if _, err = tx.Exec(ctx, "DELETE FROM e2ee_devices WHERE user_id=$1", uid); err != nil {
+		return protocol.RecoveryResult{}, err
+	}
 	if _, err = tx.Exec(ctx, "UPDATE sessions SET revoked_at=now() WHERE user_id=$1", uid); err != nil {
 		return protocol.RecoveryResult{}, err
 	}

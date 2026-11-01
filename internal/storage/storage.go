@@ -44,6 +44,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		migrations.DirectConsent,
 		migrations.EmailIdentity,
 		migrations.AnonymousIdentity,
+		migrations.E2EEKeys,
 	} {
 		version := i + 1
 		var applied bool

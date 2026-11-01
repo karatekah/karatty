@@ -124,7 +124,7 @@ func TestAnonymousSignupAndOfflineRecovery(t *testing.T) {
 		t.Fatal("email column remains", emailColumns, err)
 	}
 	var versions int
-	if err = f.db.QueryRow(f.ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 6 {
+	if err = f.db.QueryRow(f.ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 7 {
 		t.Fatal("migration history is incomplete", versions, err)
 	}
 }
