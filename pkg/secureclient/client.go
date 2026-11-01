@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -58,6 +59,7 @@ type disk struct {
 	Outbox        map[string]outgoing                   `json:"outbox"`
 	Archive       map[string][]protocol.Message         `json:"archive"`
 	Cursor        map[string]int64                      `json:"cursor"`
+	Reverified    map[string]bool                       `json:"reverified"`
 }
 type Client struct {
 	mu     sync.Mutex
@@ -87,7 +89,7 @@ func stringField(data map[string]json.RawMessage, field string) (string, error) 
 	return value, nil
 }
 func newDisk(uid, sshKey string) disk {
-	return disk{Version: 1, UserID: uid, SSHKey: sshKey, Pins: map[string]protocol.DeviceBundle{}, Sessions: map[string]map[string]json.RawMessage{}, Active: map[string]string{}, Outbox: map[string]outgoing{}, Archive: map[string][]protocol.Message{}, Cursor: map[string]int64{}}
+	return disk{Version: 1, UserID: uid, SSHKey: sshKey, Pins: map[string]protocol.DeviceBundle{}, Sessions: map[string]map[string]json.RawMessage{}, Active: map[string]string{}, Outbox: map[string]outgoing{}, Archive: map[string][]protocol.Message{}, Cursor: map[string]int64{}, Reverified: map[string]bool{}}
 }
 func (c *Client) save(next disk) error {
 	// shortcut: the alpha rewrites one bounded encrypted file per change.
@@ -131,12 +133,15 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 		return nil, security.ErrInvalid
 	}
 	sshKey := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
-	store, data, err := localstate.Open(root, http.Base, uid, passphrase)
+	keyHash := sha256.Sum256([]byte(sshKey))
+	deviceRoot := filepath.Join(root, "device-"+hex.EncodeToString(keyHash[:]))
+	store, data, err := localstate.Open(deviceRoot, http.Base, uid, passphrase)
 	if err != nil {
 		return nil, err
 	}
 	c := &Client{http: http, crypto: cryptoBinary, signer: signer, store: store}
-	if len(data) == 0 {
+	createdNew := len(data) == 0
+	if createdNew {
 		c.state = newDisk(uid, sshKey)
 		created, e := invoke(ctx, c.crypto, map[string]any{"op": "create", "one_time_keys": 20})
 		if e != nil {
@@ -168,6 +173,9 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 		store.Close()
 		return nil, errors.New("invalid local E2EE state")
 	}
+	if c.state.Reverified == nil {
+		c.state.Reverified = map[string]bool{}
+	}
 	if err = c.save(c.state); err != nil {
 		store.Close()
 		return nil, err
@@ -178,9 +186,49 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 			return nil, err
 		}
 	}
+	if createdNew {
+		if err = c.baseline(ctx); err != nil {
+			store.Close()
+			return nil, err
+		}
+	}
 	return c, nil
 }
 func (c *Client) Close() error { return c.store.Close() }
+
+// A newly created device cannot decrypt messages addressed to an older device.
+// Record the existing tail before the user verifies peers and starts receiving.
+func (c *Client) baseline(ctx context.Context) error {
+	rooms, err := c.http.List(ctx)
+	if err != nil {
+		return err
+	}
+	next, err := c.copy()
+	if err != nil {
+		return err
+	}
+	for _, room := range rooms {
+		if room.Kind != "direct" {
+			continue
+		}
+		var after int64
+		for {
+			page, pageErr := c.http.History(ctx, room.ID, after, 100)
+			if pageErr != nil {
+				return pageErr
+			}
+			if len(page.Messages) == 0 || page.Next <= after {
+				break
+			}
+			after = page.Next
+			if len(page.Messages) < 100 {
+				break
+			}
+		}
+		next.Cursor[room.ID] = after
+	}
+	return c.save(next)
+}
 func (c *Client) upload(ctx context.Context) error {
 	for len(c.state.PendingKeys) > 0 {
 		batch := min(20, len(c.state.PendingKeys))
@@ -280,10 +328,90 @@ func (c *Client) Verify(ctx context.Context, username, expected string) error {
 		return err
 	}
 	if old, found := next.Pins[username]; found && !sameIdentity(old, bundle) {
-		return errors.New("peer identity changed; reset the direct session before verifying again")
+		return errors.New("peer identity changed; use reverify after comparing the new fingerprint")
 	}
 	next.Pins[username] = bundle
 	return c.save(next)
+}
+
+// Reverify accepts an independently checked new identity. Old unread messages
+// become explicit unavailable placeholders; pending sends must be resolved first.
+func (c *Client) Reverify(ctx context.Context, conv, username, expected string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !security.Identifier(conv) || !security.Identifier(username) {
+		return security.ErrInvalid
+	}
+	for _, room := range c.state.Outbox {
+		if room.ConversationID == conv {
+			return errors.New("pending sends must be resolved before re-verifying")
+		}
+	}
+	bundle, err := c.http.Peer(ctx, username)
+	if err != nil {
+		return err
+	}
+	if bundle.Username != username {
+		return errors.New("peer username mismatch")
+	}
+	fingerprint, err := verifyBundle(bundle)
+	if err != nil || !strings.EqualFold(fingerprint, strings.TrimSpace(expected)) {
+		return errors.New("new fingerprint does not match")
+	}
+	old, found := c.state.Pins[username]
+	if !found || sameIdentity(old, bundle) {
+		return errors.New("no changed peer identity to re-verify")
+	}
+	rooms, err := c.http.List(ctx)
+	if err != nil {
+		return err
+	}
+	valid := false
+	for _, room := range rooms {
+		if room.ID == conv && room.Kind == "direct" && room.Name == username {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return errors.New("direct conversation unavailable")
+	}
+	next, err := c.copy()
+	if err != nil {
+		return err
+	}
+	next.Pins[username] = bundle
+	delete(next.Sessions, conv)
+	delete(next.Active, conv)
+	next.Reverified[conv] = true
+	return c.save(next)
+}
+
+// DiscardPending abandons uncertain outgoing envelopes in one conversation.
+// The server may already have accepted them; the user must inspect the chat.
+func (c *Client) DiscardPending(conv string) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !security.Identifier(conv) {
+		return 0, security.ErrInvalid
+	}
+	next, err := c.copy()
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for key, item := range next.Outbox {
+		if item.ConversationID == conv {
+			delete(next.Outbox, key)
+			count++
+		}
+	}
+	if count > 0 {
+		if err = c.save(next); err != nil {
+			return 0, err
+		}
+	}
+	return count, nil
 }
 
 func (c *Client) pinned(ctx context.Context, username string) (protocol.DeviceBundle, error) {
@@ -328,6 +456,11 @@ func (c *Client) Send(ctx context.Context, conv, username string, in protocol.Se
 				}
 				return old, nil
 			}
+		}
+	}
+	if found {
+		if _, err := c.pinned(ctx, username); err != nil {
+			return result, err
 		}
 	}
 	if !found {
@@ -441,8 +574,22 @@ func (c *Client) Sync(ctx context.Context, conv, username string) (protocol.Page
 				return page, errors.New("untrusted encrypted message")
 			}
 			var outer wire
-			if json.Unmarshal([]byte(message.Body), &outer) != nil || outer.SenderIdentity != peer.IdentityCurve {
-				return page, errors.New("peer identity mismatch")
+			if json.Unmarshal([]byte(message.Body), &outer) != nil {
+				return page, errors.New("invalid peer envelope")
+			}
+			if outer.SenderIdentity != peer.IdentityCurve {
+				if !next.Reverified[conv] {
+					return page, errors.New("peer identity mismatch")
+				}
+				message.Body = "[mensaje anterior al cambio de identidad; no disponible]"
+				next.Cursor[conv] = message.Seq
+				appendArchive(&next, message)
+				if err = c.save(next); err != nil {
+					return page, err
+				}
+				page.Messages = append(page.Messages, message)
+				page.Next = message.Seq
+				continue
 			}
 			session := next.Sessions[conv][outer.SessionID]
 			decrypted, decryptErr := invoke(ctx, c.crypto, map[string]any{"op": "decrypt", "account": next.Account, "session": session, "sender_identity": peer.IdentityCurve, "message": outer.Message})
