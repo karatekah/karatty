@@ -25,3 +25,6 @@ var E2EEKeys string
 
 //go:embed 008_ciphertext_envelopes.sql
 var CiphertextEnvelopes string
+
+//go:embed 009_larger_olm_envelopes.sql
+var LargerOlmEnvelopes string
