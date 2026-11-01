@@ -20,7 +20,7 @@ mkdir -p .local/smoke bin
 ssh-keygen -q -t ed25519 -N '' -f .local/smoke/user
 go build -o bin/karatty ./cmd/termlink
 printf '%s' "$invitation" | bin/karatty register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/smoke/user --username smoke --invitation-stdin
-printf '%s' 'container persisted message' | bin/karatty send --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/smoke/user --conversation "$channel" --id container-send --message-stdin >.local/smoke/ack.json
-bin/karatty history --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/smoke/user --conversation "$channel" >.local/smoke/history.json
+printf '%s' 'container persisted message' | bin/karatty send --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/smoke/user --conversation "$channel" --id container-send --message-stdin >.local/smoke/ack.json
+bin/karatty history --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/smoke/user --conversation "$channel" >.local/smoke/history.json
 python3 -c 'import json; a=json.load(open(".local/smoke/ack.json")); h=json.load(open(".local/smoke/history.json")); assert h["messages"][0]["id"] == a["id"] and a["seq"] == 1'
 echo 'Container TLS + PostgreSQL + native CLI smoke passed.'

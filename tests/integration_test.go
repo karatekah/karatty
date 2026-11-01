@@ -752,7 +752,7 @@ func TestNativeExecutable(t *testing.T) {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("CLI build: %v %s", err, out)
 	}
-	cmd := exec.CommandContext(f.ctx, binary, "history", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv)
+	cmd := exec.CommandContext(f.ctx, binary, "history", "--legacy", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("CLI history failed: %v %s", err, out)
@@ -770,7 +770,7 @@ func TestNativeExecutable(t *testing.T) {
 	_, bobKey, _ := f.register(t, "bob", conv)
 	addr, host := startSSH(t, f)
 	sshBob := sshConnect(t, addr, bobKey, host)
-	cmd = exec.CommandContext(f.ctx, binary, "send", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--id", "native-process-send", "--message-stdin")
+	cmd = exec.CommandContext(f.ctx, binary, "send", "--legacy", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--id", "native-process-send", "--message-stdin")
 	cmd.Stdin = strings.NewReader("native process message")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -786,7 +786,7 @@ func TestNativeExecutable(t *testing.T) {
 	if _, err = sshExec(t, sshBob, "send "+conv+" ssh-process-reply", "SSH reply to executable"); err != nil {
 		t.Fatal(err)
 	}
-	cmd = exec.CommandContext(f.ctx, binary, "history", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--after", "2")
+	cmd = exec.CommandContext(f.ctx, binary, "history", "--legacy", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--after", "2")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("native reconnect: %v %s", err, out)

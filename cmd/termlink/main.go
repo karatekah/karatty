@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -19,6 +21,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/karatekah/termlink/pkg/client"
 	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/termlink/pkg/secureclient"
 	"github.com/karatekah/termlink/pkg/tui"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
@@ -50,6 +53,10 @@ func run() error {
 	id := flags.String("id", "", "stable ID for a send retry")
 	messageStdin := flags.Bool("message-stdin", false, "send: read one message from standard input")
 	peer := flags.String("peer", "", "username for direct chat")
+	fingerprint := flags.String("fingerprint", "", "out-of-band peer fingerprint to verify")
+	legacy := flags.Bool("legacy", false, "use the old invitation-mode plaintext client")
+	cryptoBin := flags.String("crypto-bin", "", "local karatty-crypto binary path")
+	stateDir := flags.String("state-dir", "", "encrypted local state directory")
 	confirmDelete := flags.Bool("confirm-delete", false, "delete this account, keys, sessions and own messages")
 	var args []string
 	if len(os.Args) > 2 {
@@ -59,12 +66,12 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "fingerprint", "verify":
 	case "version":
 		fmt.Println("Karatty " + version)
 		return nil
 	default:
-		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, metrics, delete-account, version")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, fingerprint, verify, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -178,15 +185,68 @@ func run() error {
 		defer stop()
 		_ = c.Logout(end)
 	}()
+	var secure *secureclient.Backend
+	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "fingerprint" || command == "verify")) {
+		if command == "register" {
+			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
+		}
+		passphrase, e := readSecret("Frase secreta del archivo local cifrado (mínimo 12 caracteres): ")
+		if e != nil {
+			return errors.New("cannot read local passphrase; use an interactive terminal")
+		}
+		if command == "register" {
+			confirm, confirmErr := readSecret("Repite la frase secreta local: ")
+			if confirmErr != nil || !bytes.Equal(passphrase, confirm) {
+				clear(passphrase)
+				clear(confirm)
+				return errors.New("local passphrase confirmation does not match")
+			}
+			clear(confirm)
+		}
+		root := *stateDir
+		if root == "" {
+			config, configErr := os.UserConfigDir()
+			if configErr != nil {
+				clear(passphrase)
+				return configErr
+			}
+			root = filepath.Join(config, "karatty")
+		}
+		binary := *cryptoBin
+		if binary == "" {
+			exe, exeErr := os.Executable()
+			if exeErr != nil {
+				clear(passphrase)
+				return exeErr
+			}
+			binary = filepath.Join(filepath.Dir(exe), "karatty-crypto")
+			if runtime.GOOS == "windows" {
+				binary += ".exe"
+			}
+		}
+		device, openErr := secureclient.Open(ctx, c, signer, session.UserID, passphrase, root, binary)
+		clear(passphrase)
+		if openErr != nil {
+			return openErr
+		}
+		defer device.Close()
+		secure = &secureclient.Backend{HTTP: c, Secure: device}
+	}
 	switch command {
 	case "register":
-		fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
+		if !*public {
+			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
+		}
 		return nil
 	case "login":
 		fmt.Printf("Identidad verificada: %s. La sesión temporal se cierra al salir.\n", session.UserID)
 		return nil
 	case "chat":
-		_, err = tea.NewProgram(tui.New(ctx, c), tea.WithContext(ctx)).Run()
+		var backend client.Backend = c
+		if secure != nil {
+			backend = secure
+		}
+		_, err = tea.NewProgram(tui.New(ctx, backend), tea.WithContext(ctx)).Run()
 		return err
 	case "list":
 		out, e := c.List(ctx)
@@ -195,7 +255,11 @@ func run() error {
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
 	case "history":
-		out, e := c.History(ctx, *conv, *after, 100)
+		var backend client.Backend = c
+		if secure != nil {
+			backend = secure
+		}
+		out, e := backend.History(ctx, *conv, *after, 100)
 		if e != nil {
 			return e
 		}
@@ -212,6 +276,25 @@ func run() error {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
+	case "fingerprint":
+		if *peer == "" || secure == nil {
+			return errors.New("fingerprint requires --peer and the local encrypted client")
+		}
+		value, e := secure.Fingerprint(ctx, *peer)
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Huella de %s: %s\nCompárala con esa persona por otro medio antes de verificar.\n", *peer, value)
+		return nil
+	case "verify":
+		if *peer == "" || *fingerprint == "" || secure == nil {
+			return errors.New("verify requires --peer and --fingerprint")
+		}
+		if e := secure.Verify(ctx, *peer, *fingerprint); e != nil {
+			return e
+		}
+		fmt.Println("Identidad verificada para", *peer)
+		return nil
 	case "decline", "block", "unblock":
 		if *peer == "" {
 			return errors.New("provide --peer with the other username")
@@ -252,13 +335,23 @@ func run() error {
 			return e
 		}
 		body := string(b)
-		out, e := c.Send(ctx, *conv, protocol.Send{ClientID: *id, Body: body})
+		var backend client.Backend = c
+		if secure != nil {
+			backend = secure
+		}
+		out, e := backend.Send(ctx, *conv, protocol.Send{ClientID: *id, Body: body})
 		if e != nil {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 	return nil
+}
+
+func clear(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
 }
 
 // readSecret uses the controlling terminal when stdin carries an invitation or

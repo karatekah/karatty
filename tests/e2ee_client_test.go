@@ -1,11 +1,13 @@
 package tests
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/karatekah/termlink/internal/security"
 	"github.com/karatekah/termlink/pkg/protocol"
@@ -109,6 +111,18 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	bob, err = secureclient.Open(f.ctx, bobHTTP, bobKey, bobLogin.UserID, passphrase, bobDir, bin)
 	if err != nil || len(bob.Archive(direct.ID)) != 2 {
 		t.Fatal("encrypted local archive did not survive restart", err)
+	}
+	backend := &secureclient.Backend{HTTP: bobHTTP, Secure: bob}
+	visible, err := backend.History(f.ctx, direct.ID, 0, 100)
+	if err != nil || len(visible.Messages) != 2 || visible.Messages[0].Body != "secreto de Alice" {
+		t.Fatal("local TUI backend exposed ciphertext or lost history", err)
+	}
+	streamCtx, stop := context.WithTimeout(f.ctx, 5*time.Second)
+	stream := backend.Stream(streamCtx, direct.ID, 0)
+	initial := receive(t, streamCtx, stream)
+	stop()
+	if initial.Err != nil || len(initial.Page.Messages) != 2 || initial.Page.Messages[0].Body != "secreto de Alice" {
+		t.Fatal("local TUI stream did not show decrypted archive", initial.Err)
 	}
 	large := strings.Repeat("x", 4096)
 	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "large", Body: large}); err != nil {
