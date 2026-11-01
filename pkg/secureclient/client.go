@@ -168,6 +168,10 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 		store.Close()
 		return nil, errors.New("invalid local E2EE state")
 	}
+	if err = c.save(c.state); err != nil {
+		store.Close()
+		return nil, err
+	}
 	if len(c.state.PendingKeys) > 0 {
 		if err = c.upload(ctx); err != nil {
 			store.Close()
@@ -488,4 +492,10 @@ func (c *Client) Archive(conv string) []protocol.Message {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]protocol.Message(nil), c.state.Archive[conv]...)
+}
+
+func (c *Client) Cursor(conv string) int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.state.Cursor[conv]
 }

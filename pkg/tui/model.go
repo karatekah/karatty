@@ -36,6 +36,16 @@ type directResult struct {
 	requests []protocol.DirectRequest
 	err      error
 }
+type identityResult struct {
+	peer        string
+	fingerprint string
+	verified    bool
+	err         error
+}
+type identityBackend interface {
+	Fingerprint(context.Context, string) (string, error)
+	Verify(context.Context, string, string) error
+}
 type Model struct {
 	ctx           context.Context
 	backend       client.Backend
@@ -55,6 +65,7 @@ type Model struct {
 	fatal         bool
 	requests      []protocol.DirectRequest
 	requestView   bool
+	identityView  string
 }
 
 func New(ctx context.Context, b client.Backend) *Model {
@@ -87,6 +98,7 @@ func (m *Model) selectRoom() tea.Cmd {
 	m.busy = false
 	m.fatal = false
 	m.requestView = false
+	m.identityView = ""
 	m.view.SetContent("")
 	if len(m.rooms) == 0 {
 		m.status = "Sin conversaciones. Usa /direct USUARIO para solicitar un chat."
@@ -107,6 +119,31 @@ func (m *Model) directCommand() tea.Cmd {
 		return nil
 	}
 	action := args[0]
+	if action == "/fingerprint" || action == "/verify" {
+		secure, ok := m.backend.(identityBackend)
+		if !ok {
+			m.status = "La verificación de identidad requiere la TUI local cifrada."
+			return nil
+		}
+		if (action == "/fingerprint" && len(args) != 2) || (action == "/verify" && len(args) != 3) || !security.Identifier(args[1]) {
+			m.status = "Usa /fingerprint USUARIO o /verify USUARIO HUELLA"
+			return nil
+		}
+		m.busy = true
+		m.input.Reset()
+		m.status = "Consultando identidad…"
+		return func() tea.Msg {
+			ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+			defer cancel()
+			result := identityResult{peer: args[1], verified: action == "/verify"}
+			if result.verified {
+				result.err = secure.Verify(ctx, args[1], args[2])
+			} else {
+				result.fingerprint, result.err = secure.Fingerprint(ctx, args[1])
+			}
+			return result
+		}
+	}
 	if action == "/requests" && len(args) == 1 {
 		m.busy = true
 		m.input.Reset()
@@ -244,6 +281,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.list()
+	case identityResult:
+		m.busy = false
+		if v.err != nil {
+			m.status = security.Display(v.err.Error())
+			return m, nil
+		}
+		if v.verified {
+			m.identityView = ""
+			m.status = "Identidad verificada para " + v.peer
+			return m, m.list()
+		}
+		m.identityView = "Huella de " + v.peer + ":\n" + v.fingerprint + "\n\nCompárala con esa persona por otro medio. Luego escribe /verify " + v.peer + " HUELLA"
+		m.renderMessages()
+		m.status = "Compara la huella fuera de Karatty antes de verificar."
+		return m, nil
 	case tea.KeyPressMsg:
 		switch v.String() {
 		case "ctrl+c", "ctrl+d":
@@ -307,6 +359,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 func (m *Model) renderMessages() {
 	bottom := m.view.AtBottom()
+	if m.identityView != "" {
+		m.view.SetContent(m.identityView)
+		return
+	}
 	if m.requestView {
 		lines := []string{"Solicitudes de chat directo:"}
 		if len(m.requests) == 0 {
@@ -341,7 +397,7 @@ func (m *Model) View() tea.View {
 	title := "Karatty · alpha"
 	status := ansi.Truncate(m.status, m.width, "…")
 	header := ansi.Truncate(strings.Join(tabs, "  "), m.width, "…")
-	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab chat · /requests solicitudes · /direct USUARIO · Ctrl+L recargar · Ctrl+C salir", m.width, "…")
+	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab chat · /direct USUARIO · /fingerprint USUARIO · /verify USUARIO HUELLA · Ctrl+L · Ctrl+C", m.width, "…")
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
