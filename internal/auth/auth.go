@@ -163,8 +163,33 @@ func Principal(ctx context.Context, tx pgx.Tx, token string) (string, error) {
 	return uid, err
 }
 
+// Verify checks an active session for endpoints without a conversation operation.
+func (s *Service) Verify(ctx context.Context, token string) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = Principal(ctx, tx, token); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Service) Logout(ctx context.Context, token string) error {
-	_, err := s.DB.Exec(ctx, "UPDATE sessions SET revoked_at=now() WHERE token_hash=$1", security.Hash(token))
+	if len(token) != 48 {
+		return security.ErrUnauthorized
+	}
+	var hash string
+	err := s.DB.QueryRow(ctx, `UPDATE sessions s SET revoked_at=now()
+		FROM ssh_keys k, users u
+		WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()
+		AND k.id=s.key_id AND k.revoked_at IS NULL
+		AND u.id=s.user_id AND u.active
+		RETURNING s.token_hash`, security.Hash(token)).Scan(&hash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return security.ErrUnauthorized
+	}
 	return err
 }
 func (s *Service) Invite(ctx context.Context, conversation string, uses int, ttl time.Duration) (string, error) {

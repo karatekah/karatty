@@ -56,3 +56,49 @@ func TestAPIBoundsAndSessionExpiry(t *testing.T) {
 		t.Fatal("expired session accepted")
 	}
 }
+
+func TestHTTPAuthAndNoStore(t *testing.T) {
+	f := setup(t)
+	conv, err := f.c.Channel(f.ctx, "http-contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alice, _, session := f.register(t, "alice", conv)
+	check := func(method, path, authorization string, want int) {
+		t.Helper()
+		req, err := http.NewRequest(method, f.http.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		resp, err := f.http.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Fatalf("%s %s (authorization present: %t): status %d, want %d", method, path, authorization != "", resp.StatusCode, want)
+		}
+		if got := resp.Header.Get("Cache-Control"); got != "no-store" {
+			t.Fatalf("%s %s: Cache-Control = %q, want no-store", method, path, got)
+		}
+	}
+
+	check("GET", "/healthz", "", 200)
+	check("GET", "/metrics", "", 401)
+	check("GET", "/metrics", session.Token, 401)
+	check("GET", "/metrics", "Bearer "+session.Token, 200)
+	metrics, err := alice.Metrics(f.ctx)
+	if err != nil || !strings.Contains(metrics, "termlink_requests_total") {
+		t.Fatalf("authenticated metrics: %v %q", err, metrics)
+	}
+	check("GET", "/v1/conversations", session.Token, 401)
+	check("GET", "/v1/conversations", "Bearer "+session.Token, 200)
+	check("DELETE", "/v1/session", "", 401)
+	check("DELETE", "/v1/session", session.Token, 401)
+	check("DELETE", "/v1/session", "Bearer "+session.Token, 204)
+	check("GET", "/metrics", "Bearer "+session.Token, 401)
+	check("GET", "/missing", "", 404)
+}
