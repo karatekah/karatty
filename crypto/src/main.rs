@@ -13,6 +13,10 @@ enum Request {
     Create {
         one_time_keys: usize,
     },
+    Replenish {
+        account: Value,
+        one_time_keys: usize,
+    },
     Encrypt {
         account: Value,
         session: Option<Value>,
@@ -28,27 +32,45 @@ enum Request {
     },
 }
 
+fn publish_keys(account: &mut Account, count: usize) -> Result<Vec<Value>, &'static str> {
+    if !(1..=20).contains(&count)
+        || account.stored_one_time_key_count() + count > account.max_number_of_one_time_keys()
+    {
+        return Err("invalid key count");
+    }
+    account.generate_one_time_keys(count);
+    let identity = account.identity_keys();
+    let keys: Vec<Value> = account
+        .one_time_keys()
+        .values()
+        .map(|key| {
+            let payload = format!("KARATTY-OTK-v1\n{}\n{}", identity.curve25519, key);
+            json!({"key": key.to_base64(), "signature": account.sign(payload).to_base64()})
+        })
+        .collect();
+    account.mark_keys_as_published();
+    Ok(keys)
+}
+
 fn handle(request: Request) -> Result<Value, &'static str> {
     match request {
         Request::Create { one_time_keys } => {
-            if !(1..=20).contains(&one_time_keys) {
-                return Err("invalid key count");
-            }
             let mut account = Account::new();
-            account.generate_one_time_keys(one_time_keys);
+            let keys = publish_keys(&mut account, one_time_keys)?;
             let identity = account.identity_keys();
-            let keys: Vec<Value> = account
-                .one_time_keys()
-                .values()
-                .map(|key| {
-                    let payload = format!("KARATTY-OTK-v1\n{}\n{}", identity.curve25519, key);
-                    json!({"key": key.to_base64(), "signature": account.sign(payload).to_base64()})
-                })
-                .collect();
-            account.mark_keys_as_published();
             Ok(
                 json!({"account": account.pickle(), "identity": {"ed25519": identity.ed25519.to_base64(), "curve25519": identity.curve25519.to_base64()}, "one_time_keys": keys}),
             )
+        }
+        Request::Replenish {
+            account,
+            one_time_keys,
+        } => {
+            let account: AccountPickle =
+                serde_json::from_value(account).map_err(|_| "invalid account")?;
+            let mut account = Account::from_pickle(account);
+            let keys = publish_keys(&mut account, one_time_keys)?;
+            Ok(json!({"account": account.pickle(), "one_time_keys": keys}))
         }
         Request::Encrypt {
             account,
@@ -171,6 +193,16 @@ mod tests {
         })
         .unwrap();
         assert_eq!(received["plaintext"], "hola");
+        let replenished = handle(Request::Replenish {
+            account: received["account"].clone(),
+            one_time_keys: 1,
+        })
+        .unwrap();
+        assert_eq!(replenished["one_time_keys"].as_array().unwrap().len(), 1);
+        assert_ne!(
+            replenished["one_time_keys"][0]["key"],
+            bob["one_time_keys"][0]["key"]
+        );
 
         let reply = handle(Request::Encrypt {
             account: received["account"].clone(),
