@@ -13,3 +13,6 @@ var AccountDeletion string
 
 //go:embed 004_direct_consent.sql
 var DirectConsent string
+
+//go:embed 005_email_identity.sql
+var EmailIdentity string

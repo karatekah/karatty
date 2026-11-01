@@ -12,6 +12,31 @@ type Challenge struct {
 	ID      string `json:"id"`
 	Payload string `json:"payload"`
 }
+type SignupStart struct {
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	PublicKey string `json:"public_key"`
+}
+type EmailProof struct {
+	ID        string `json:"id"`
+	Code      string `json:"code"`
+	Signature []byte `json:"signature"`
+}
+type SignupResult struct {
+	Session      Session `json:"session"`
+	RecoveryCode string  `json:"recovery_code"`
+}
+type RecoveryStart struct {
+	Email     string `json:"email"`
+	PublicKey string `json:"public_key"`
+}
+type RecoveryProof struct {
+	EmailProof
+	RecoveryCode string `json:"recovery_code"`
+}
+type RecoveryResult struct {
+	RecoveryCode string `json:"recovery_code"`
+}
 type Proof struct {
 	ID        string `json:"id"`
 	Signature []byte `json:"signature"`

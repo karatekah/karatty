@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/karatekah/termlink/internal/auth"
 	"github.com/karatekah/termlink/internal/chat"
+	"github.com/karatekah/termlink/internal/mail"
 	"github.com/karatekah/termlink/internal/security"
 	"github.com/karatekah/termlink/internal/storage"
 	"github.com/karatekah/termlink/internal/transport"
@@ -47,6 +48,7 @@ func run() error {
 	revokeKey := flag.String("revoke-key", "", "admin: key fingerprint")
 	revokeMember := flag.String("revoke-member", "", "admin: user ID")
 	retention30d := flag.Bool("retention-30d", false, "purge messages older than 30 days at startup and hourly")
+	publicSignup := flag.Bool("public-signup", false, "require verified email for open registration")
 	purgeExpired := flag.Bool("purge-expired-messages", false, "admin: purge messages older than 30 days once")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -60,6 +62,14 @@ func run() error {
 		return err
 	}
 	a := &auth.Service{DB: db}
+	if *publicSignup {
+		apiKey, from := os.Getenv("RESEND_API_KEY"), os.Getenv("TERMLINK_MAIL_FROM")
+		if apiKey == "" || from == "" {
+			return security.ErrInvalid
+		}
+		a.Mail = mail.Resend{APIKey: apiKey, From: from}
+		a.PublicSignup = true
+	}
 	c := chat.New(db)
 	switch {
 	case *channel != "":
@@ -117,7 +127,7 @@ func run() error {
 			result <- server.Serve(listener)
 		}
 	}()
-	if *retention30d {
+	if *retention30d || *publicSignup {
 		go runRetention(ctx, db)
 	}
 	slog.Info("termlink started", "address", *addr, "ssh_enabled", *hostKey != "")
@@ -150,6 +160,12 @@ func runRetention(ctx context.Context, db *pgxpool.Pool) {
 			slog.Error("direct request purge failed")
 		} else if requestErr == nil {
 			slog.Info("direct request purge finished", "deleted", requests)
+		}
+		challenges, challengeErr := storage.PurgeExpiredEmailChallenges(ctx, db)
+		if challengeErr != nil && ctx.Err() == nil {
+			slog.Error("email challenge purge failed")
+		} else if challengeErr == nil {
+			slog.Info("email challenge purge finished", "deleted", challenges)
 		}
 		select {
 		case <-ctx.Done():

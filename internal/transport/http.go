@@ -22,19 +22,20 @@ import (
 )
 
 type API struct {
-	Auth     *auth.Service
-	Chat     *chat.Service
-	Requests *security.Limiter
-	Streams  chan struct{}
-	Count    atomic.Uint64
-	Failures atomic.Uint64
-	ctx      context.Context
-	cancel   context.CancelFunc
+	Auth             *auth.Service
+	Chat             *chat.Service
+	Requests         *security.Limiter
+	IdentityRequests *security.Limiter
+	Streams          chan struct{}
+	Count            atomic.Uint64
+	Failures         atomic.Uint64
+	ctx              context.Context
+	cancel           context.CancelFunc
 }
 
 func NewAPI(a *auth.Service, c *chat.Service) *API {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &API{Auth: a, Chat: c, Requests: security.NewLimiter(10, 30), Streams: make(chan struct{}, 64), ctx: ctx, cancel: cancel}
+	return &API{Auth: a, Chat: c, Requests: security.NewLimiter(10, 30), IdentityRequests: security.NewLimiter(1.0/60, 3), Streams: make(chan struct{}, 64), ctx: ctx, cancel: cancel}
 }
 func (a *API) Close() { a.cancel() }
 func token(r *http.Request) string {
@@ -130,6 +131,68 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		out, err := a.Auth.Finish(r.Context(), in)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/signup/start", func(w http.ResponseWriter, r *http.Request) {
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if !a.IdentityRequests.Allow(host) {
+			failure(w, security.ErrLimited)
+			return
+		}
+		var in protocol.SignupStart
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		out, err := a.Auth.StartSignup(r.Context(), in)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/signup/complete", func(w http.ResponseWriter, r *http.Request) {
+		var in protocol.EmailProof
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		out, err := a.Auth.CompleteSignup(r.Context(), in)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/recovery/start", func(w http.ResponseWriter, r *http.Request) {
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if !a.IdentityRequests.Allow(host) {
+			failure(w, security.ErrLimited)
+			return
+		}
+		var in protocol.RecoveryStart
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		out, err := a.Auth.StartRecovery(r.Context(), in)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/recovery/complete", func(w http.ResponseWriter, r *http.Request) {
+		var in protocol.RecoveryProof
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		out, err := a.Auth.CompleteRecovery(r.Context(), in)
 		if err != nil {
 			failure(w, err)
 			return

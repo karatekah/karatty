@@ -39,6 +39,7 @@ func run() error {
 	base := flags.String("server", "https://127.0.0.1:8443", "API URL")
 	keyPath := flags.String("key", "", "Ed25519 private key path")
 	username := flags.String("username", "", "username for registration")
+	email := flags.String("email", "", "verified email for public registration or recovery")
 	invitationStdin := flags.Bool("invitation-stdin", false, "read invitation from standard input (registration)")
 	dev := flags.Bool("dev", false, "allow loopback HTTP")
 	caPath := flags.String("ca-cert", "", "additional trusted PEM CA certificate")
@@ -56,9 +57,9 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account":
 	default:
-		return errors.New("commands: chat, register, login, list, history, send, direct, requests, decline, block, unblock, metrics, delete-account")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, metrics, delete-account")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -104,6 +105,62 @@ func run() error {
 		transport := http.DefaultTransport.(*http.Transport).Clone()
 		transport.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
 		c.Transport = &http.Client{Transport: transport, Timeout: 10 * time.Second}
+	}
+	if command == "register" && *email != "" {
+		if *username == "" || *invitationStdin {
+			return errors.New("public registration requires --username and --email, without --invitation-stdin")
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		challenge, e := c.StartSignup(ctx, signer, *username, *email)
+		if e != nil {
+			return e
+		}
+		code, e := readSecret("Código del correo (entrada oculta): ")
+		if e != nil {
+			return e
+		}
+		result, e := c.CompleteSignup(ctx, signer, challenge, string(code))
+		for i := range code {
+			code[i] = 0
+		}
+		if e != nil {
+			return e
+		}
+		defer func() { _ = c.Logout(context.Background()) }()
+		fmt.Printf("Cuenta creada. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", result.RecoveryCode)
+		return nil
+	}
+	if command == "recover" {
+		if *email == "" {
+			return errors.New("recovery requires --email and --key with a new SSH key")
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		challenge, e := c.StartRecovery(ctx, signer, *email)
+		if e != nil {
+			return e
+		}
+		code, e := readSecret("Código del correo (entrada oculta): ")
+		if e != nil {
+			return e
+		}
+		recoveryCode, e := readSecret("Código de recuperación guardado fuera del equipo: ")
+		if e != nil {
+			return e
+		}
+		result, e := c.CompleteRecovery(ctx, signer, challenge, string(code), string(recoveryCode))
+		for i := range code {
+			code[i] = 0
+		}
+		for i := range recoveryCode {
+			recoveryCode[i] = 0
+		}
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Clave SSH reemplazada. Guarda el nuevo código de recuperación fuera del equipo; se muestra una sola vez: %s\n", result.RecoveryCode)
+		return nil
 	}
 	invite := ""
 	name := ""
