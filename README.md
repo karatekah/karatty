@@ -43,5 +43,6 @@ Faltan la contratación/configuración del proveedor de correo y dominio, la pru
 [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
 [Operación y respaldos para la alpha](docs/operations.md)
 [Borrador de privacidad (no publicable aún)](docs/privacy-draft.md)
+[Preparación de ejecutables públicos](docs/release.md)
 
 Código privado sin licencia pública concedida por este repositorio. La elección de licencia comercial o de distribución es una decisión pendiente del propietario. Las dependencias conservan sus licencias propias.
