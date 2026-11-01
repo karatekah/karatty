@@ -24,6 +24,8 @@ import (
 	"golang.org/x/term"
 )
 
+var version = "dev"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -58,8 +60,11 @@ func run() error {
 	}
 	switch command {
 	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account":
+	case "version":
+		fmt.Println("Karatty " + version)
+		return nil
 	default:
-		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, metrics, delete-account")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
