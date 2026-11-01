@@ -11,8 +11,12 @@ Comprobadas para este sprint el 2026-10-31. Se fijan versiones exactas y hashes 
 | pgx | v5.12.0 | https://github.com/jackc/pgx |
 | WebSocket | v1.8.15 | https://pkg.go.dev/github.com/coder/websocket@v1.8.15 |
 | PostgreSQL portable Windows y Docker | 17.11 | https://www.enterprisedb.com/download-postgresql-binaries |
+| Rust del prototipo criptográfico | 1.99.1 | https://rust-lang.org/install/ |
+| vodozemac (Olm 1:1) | 0.11.1 | https://github.com/matrix-org/vodozemac |
 
 Las API v2 de Charm usan `charm.land`; View devuelve tea.View y las pulsaciones son tea.KeyPressMsg. Las API se contrastaron con el código de las versiones descargadas y se verificaron mediante compilación y un PTY real sobre SSH. El gateway usa el timeout de handshake incorporado en charm.land/ssh.
+
+`crypto/Cargo.lock` fija las dependencias del puente criptográfico experimental. CI comprueba formato y pruebas con Rust 1.99.1. Ese ejecutable todavía no se distribuye ni se integra con la TUI; antes de publicar se revisarán las licencias y avisos de todas sus dependencias y se compilará en cada plataforma de la Release.
 
 El archivo Go de Windows descargado del endpoint oficial fue validado contra el SHA-256 anunciado allí: `f26081f438319757f8a1b46d7d0b2c5ec7583d4038e485e0aa725cfde7885fff`.
 

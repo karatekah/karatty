@@ -14,16 +14,16 @@ enum Request {
         one_time_keys: usize,
     },
     Encrypt {
-        account: AccountPickle,
-        session: Option<SessionPickle>,
-        peer_identity: Option<Curve25519PublicKey>,
-        peer_one_time_key: Option<Curve25519PublicKey>,
+        account: Value,
+        session: Option<Value>,
+        peer_identity: Option<String>,
+        peer_one_time_key: Option<String>,
         plaintext: String,
     },
     Decrypt {
-        account: AccountPickle,
-        session: Option<SessionPickle>,
-        sender_identity: Curve25519PublicKey,
+        account: Value,
+        session: Option<Value>,
+        sender_identity: String,
         message: OlmMessage,
     },
 }
@@ -42,11 +42,13 @@ fn handle(request: Request) -> Result<Value, &'static str> {
                 .values()
                 .map(|key| {
                     let payload = format!("KARATTY-OTK-v1\n{}\n{}", identity.curve25519, key);
-                    json!({"key": key, "signature": account.sign(payload).to_base64()})
+                    json!({"key": key.to_base64(), "signature": account.sign(payload).to_base64()})
                 })
                 .collect();
             account.mark_keys_as_published();
-            Ok(json!({"account": account.pickle(), "identity": identity, "one_time_keys": keys}))
+            Ok(
+                json!({"account": account.pickle(), "identity": {"ed25519": identity.ed25519.to_base64(), "curve25519": identity.curve25519.to_base64()}, "one_time_keys": keys}),
+            )
         }
         Request::Encrypt {
             account,
@@ -58,12 +60,22 @@ fn handle(request: Request) -> Result<Value, &'static str> {
             if plaintext.is_empty() || plaintext.len() > 4096 {
                 return Err("invalid plaintext length");
             }
+            let account: AccountPickle =
+                serde_json::from_value(account).map_err(|_| "invalid account")?;
             let account = Account::from_pickle(account);
             let mut session = if let Some(pickle) = session {
+                let pickle: SessionPickle =
+                    serde_json::from_value(pickle).map_err(|_| "invalid session")?;
                 Session::from_pickle(pickle)
             } else {
-                let identity = peer_identity.ok_or("missing peer identity")?;
-                let one_time_key = peer_one_time_key.ok_or("missing peer one-time key")?;
+                let identity = Curve25519PublicKey::from_base64(
+                    &peer_identity.ok_or("missing peer identity")?,
+                )
+                .map_err(|_| "invalid peer identity")?;
+                let one_time_key = Curve25519PublicKey::from_base64(
+                    &peer_one_time_key.ok_or("missing peer one-time key")?,
+                )
+                .map_err(|_| "invalid peer one-time key")?;
                 account
                     .create_outbound_session(SessionConfig::version_1(), identity, one_time_key)
                     .map_err(|_| "session creation failed")?
@@ -81,8 +93,14 @@ fn handle(request: Request) -> Result<Value, &'static str> {
             sender_identity,
             message,
         } => {
+            let account: AccountPickle =
+                serde_json::from_value(account).map_err(|_| "invalid account")?;
             let mut account = Account::from_pickle(account);
+            let sender_identity = Curve25519PublicKey::from_base64(&sender_identity)
+                .map_err(|_| "invalid sender identity")?;
             let (session, plaintext) = if let Some(pickle) = session {
+                let pickle: SessionPickle =
+                    serde_json::from_value(pickle).map_err(|_| "invalid session")?;
                 let mut session = Session::from_pickle(pickle);
                 let plaintext = session.decrypt(&message).map_err(|_| "decryption failed")?;
                 (session, plaintext)
@@ -133,7 +151,7 @@ mod tests {
         let alice = handle(Request::Create { one_time_keys: 1 }).unwrap();
         let bob = handle(Request::Create { one_time_keys: 1 }).unwrap();
         let first = handle(Request::Encrypt {
-            account: serde_json::from_value(alice["account"].clone()).unwrap(),
+            account: alice["account"].clone(),
             session: None,
             peer_identity: Some(
                 serde_json::from_value(bob["identity"]["curve25519"].clone()).unwrap(),
@@ -145,7 +163,7 @@ mod tests {
         })
         .unwrap();
         let received = handle(Request::Decrypt {
-            account: serde_json::from_value(bob["account"].clone()).unwrap(),
+            account: bob["account"].clone(),
             session: None,
             sender_identity: serde_json::from_value(alice["identity"]["curve25519"].clone())
                 .unwrap(),
@@ -155,16 +173,16 @@ mod tests {
         assert_eq!(received["plaintext"], "hola");
 
         let reply = handle(Request::Encrypt {
-            account: serde_json::from_value(received["account"].clone()).unwrap(),
-            session: Some(serde_json::from_value(received["session"].clone()).unwrap()),
+            account: received["account"].clone(),
+            session: Some(received["session"].clone()),
             peer_identity: None,
             peer_one_time_key: None,
             plaintext: "respuesta".into(),
         })
         .unwrap();
         let decrypted = handle(Request::Decrypt {
-            account: serde_json::from_value(first["account"].clone()).unwrap(),
-            session: Some(serde_json::from_value(first["session"].clone()).unwrap()),
+            account: first["account"].clone(),
+            session: Some(first["session"].clone()),
             sender_identity: serde_json::from_value(bob["identity"]["curve25519"].clone()).unwrap(),
             message: serde_json::from_value(reply["message"].clone()).unwrap(),
         })
@@ -178,8 +196,8 @@ mod tests {
         if let Ok(damaged) = OlmMessage::from_parts(kind, &bytes) {
             assert!(
                 handle(Request::Decrypt {
-                    account: serde_json::from_value(first["account"].clone()).unwrap(),
-                    session: Some(serde_json::from_value(first["session"].clone()).unwrap()),
+                    account: first["account"].clone(),
+                    session: Some(first["session"].clone()),
                     sender_identity: serde_json::from_value(bob["identity"]["curve25519"].clone())
                         .unwrap(),
                     message: damaged,
@@ -189,8 +207,8 @@ mod tests {
         }
         assert!(
             handle(Request::Decrypt {
-                account: serde_json::from_value(decrypted["account"].clone()).unwrap(),
-                session: Some(serde_json::from_value(decrypted["session"].clone()).unwrap()),
+                account: decrypted["account"].clone(),
+                session: Some(decrypted["session"].clone()),
                 sender_identity: serde_json::from_value(bob["identity"]["curve25519"].clone())
                     .unwrap(),
                 message,
