@@ -32,6 +32,7 @@ Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consu
 | --- | --- |
 | `internal/auth` | Registro, prueba de posesión de la clave, sesiones, recuperación y eliminación de cuenta. |
 | `internal/chat` | Solicitudes y aceptación de directos, membresías, mensajes, historial y bloqueo. |
+| `internal/e2ee` | Distribución experimental de identidades públicas y claves de un solo uso, solo entre miembros de un directo aceptado. |
 | `internal/transport` | Rutas HTTP/WSS, gateway SSH, límites de transporte y configuración TLS. |
 | `internal/storage` y `migrations` | Conexión PostgreSQL, migraciones y purga de datos vencidos. |
 | `internal/security` | Validación de entradas, identificadores aleatorios, hashes y límites de tasa. |

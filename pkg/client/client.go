@@ -219,6 +219,19 @@ func (c *HTTP) DirectRequests(ctx context.Context) ([]protocol.DirectRequest, er
 	err := c.request(ctx, "GET", "/v1/direct/requests", nil, &out)
 	return out, err
 }
+func (c *HTTP) UploadDevice(ctx context.Context, in protocol.DeviceUpload) error {
+	return c.request(ctx, "POST", "/v1/e2ee/device", in, nil)
+}
+func (c *HTTP) Peer(ctx context.Context, username string) (protocol.DeviceBundle, error) {
+	var out protocol.DeviceBundle
+	err := c.request(ctx, "GET", "/v1/e2ee/peer/"+url.PathEscape(username), nil, &out)
+	return out, err
+}
+func (c *HTTP) ClaimPeer(ctx context.Context, username string) (protocol.DeviceBundle, error) {
+	var out protocol.DeviceBundle
+	err := c.request(ctx, "POST", "/v1/e2ee/peer/"+url.PathEscape(username)+"/claim", nil, &out)
+	return out, err
+}
 func (c *HTTP) DeclineDirect(ctx context.Context, username string) error {
 	return c.request(ctx, "DELETE", "/v1/direct/requests/"+url.PathEscape(username), nil, nil)
 }

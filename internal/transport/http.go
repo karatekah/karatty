@@ -17,6 +17,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/karatekah/termlink/internal/auth"
 	"github.com/karatekah/termlink/internal/chat"
+	"github.com/karatekah/termlink/internal/e2ee"
 	"github.com/karatekah/termlink/internal/security"
 	"github.com/karatekah/termlink/pkg/protocol"
 )
@@ -24,6 +25,7 @@ import (
 type API struct {
 	Auth             *auth.Service
 	Chat             *chat.Service
+	Keys             *e2ee.Service
 	Requests         *security.Limiter
 	IdentityRequests *security.Limiter
 	Streams          chan struct{}
@@ -35,7 +37,7 @@ type API struct {
 
 func NewAPI(a *auth.Service, c *chat.Service) *API {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &API{Auth: a, Chat: c, Requests: security.NewLimiter(10, 30), IdentityRequests: security.NewLimiter(1.0/60, 3), Streams: make(chan struct{}, 64), ctx: ctx, cancel: cancel}
+	return &API{Auth: a, Chat: c, Keys: e2ee.New(c.DB), Requests: security.NewLimiter(10, 30), IdentityRequests: security.NewLimiter(1.0/60, 3), Streams: make(chan struct{}, 64), ctx: ctx, cancel: cancel}
 }
 func (a *API) Close() { a.cancel() }
 func token(r *http.Request) string {
@@ -240,6 +242,34 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		w.WriteHeader(204)
+	})
+	mux.HandleFunc("POST /v1/e2ee/device", func(w http.ResponseWriter, r *http.Request) {
+		var in protocol.DeviceUpload
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		if err := a.Keys.Upload(r.Context(), token(r), in); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("GET /v1/e2ee/peer/{username}", func(w http.ResponseWriter, r *http.Request) {
+		out, err := a.Keys.Peer(r.Context(), token(r), r.PathValue("username"), false)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/e2ee/peer/{username}/claim", func(w http.ResponseWriter, r *http.Request) {
+		out, err := a.Keys.Peer(r.Context(), token(r), r.PathValue("username"), true)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
 	})
 	mux.HandleFunc("GET /v1/conversations/{id}/messages", func(w http.ResponseWriter, r *http.Request) {
 		after, limit, err := cursor(r)
