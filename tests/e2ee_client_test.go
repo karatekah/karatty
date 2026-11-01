@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -13,6 +15,15 @@ import (
 	"github.com/karatekah/termlink/pkg/protocol"
 	"github.com/karatekah/termlink/pkg/secureclient"
 )
+
+type rejectMessagePost struct{ next http.RoundTripper }
+
+func (r rejectMessagePost) RoundTrip(request *http.Request) (*http.Response, error) {
+	if request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/messages") {
+		return nil, errors.New("simulated unavailable server")
+	}
+	return r.next.RoundTrip(request)
+}
 
 func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	bin := os.Getenv("KARATTY_CRYPTO_BIN")
@@ -167,6 +178,13 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	if _, err = bob.Send(f.ctx, direct.ID, "alice", protocol.Send{ClientID: "old-unread", Body: "mensaje antiguo"}); err != nil {
 		t.Fatal(err)
 	}
+	transport := aliceHTTP.Transport.Transport
+	aliceHTTP.Transport.Transport = rejectMessagePost{next: transport}
+	_, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "uncertain", Body: "envío pendiente"})
+	aliceHTTP.Transport.Transport = transport
+	if err == nil {
+		t.Fatal("offline send unexpectedly succeeded")
+	}
 	newBobKey := signer(t)
 	challenge, err := bobHTTP.StartRecovery(f.ctx, newBobKey, "bob")
 	if err != nil {
@@ -190,6 +208,12 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	}
 	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "after-recovery-unverified", Body: "blocked"}); err == nil {
 		t.Fatal("sent to a changed identity without new verification")
+	}
+	if err = alice.Reverify(f.ctx, direct.ID, "bob", newFingerprint); err == nil {
+		t.Fatal("re-verification silently discarded a pending send")
+	}
+	if count, discardErr := alice.DiscardPending(direct.ID); discardErr != nil || count != 1 {
+		t.Fatal("pending send could not be discarded explicitly", discardErr)
 	}
 	if err = alice.Reverify(f.ctx, direct.ID, "bob", newFingerprint); err != nil {
 		t.Fatal("could not re-verify recovered peer", err)
