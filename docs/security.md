@@ -10,7 +10,7 @@ Pendientes antes de usuarios reales: E2EE de chats directos 1:1 en la TUI local,
 
 Los límites de tasa son por proceso: API 10 peticiones/s por IP con ráfaga de 30, envío 2 mensajes/s por usuario con ráfaga de 10, SSH 1 intento/s por IP con ráfaga de 10. Mapa de límites acotado a 4096 identidades, 128 conexiones HTTP, 64 SSH y 64 suscripciones/canales SSH por proceso; tablas de desafíos con máximo 4096 y TTL de dos minutos. Hay latidos WSS cada 15 s, timeout de escritura/latido de 5 s, handshake SSH de 10 s y sesión máxima de 8 h. Revisar límites compartidos y capacidad antes de aumentar procesos o exponer a Internet.
 
-Reabrir un chat directo existente exige conservar ambas membresías; no restaura un acceso revocado. La recuperación de acceso requiere intervención administrativa explícita. Los IDs de mensajes pendientes del cliente viven en memoria: la recuperación de una cola de salida tras cerrar el proceso queda pendiente; los scripts pueden conservar y reutilizar `--id`.
+Reabrir un chat directo existente exige conservar ambas membresías; no restaura un acceso revocado. La recuperación de acceso usa el código guardado fuera del equipo y una clave SSH nueva. Los IDs de mensajes pendientes del cliente viven en memoria: la recuperación de una cola de salida tras cerrar el proceso queda pendiente; los scripts pueden conservar y reutilizar `--id`.
 
 Un chat directo solo se abre con la llamada recíproca del destinatario. Las solicitudes caducan en 7 días, se limitan a 10 salientes activas por usuario y a una tasa de 1/minuto con ráfaga de 3 por proceso. El destinatario puede rechazar o bloquear. El bloqueo cierra el chat existente e impide mensajes y solicitudes nuevos; no borra los mensajes que cada participante ya podía leer.
 
