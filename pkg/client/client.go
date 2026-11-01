@@ -32,6 +32,10 @@ type Backend interface {
 	History(context.Context, string, int64, int) (protocol.Page, error)
 	Send(context.Context, string, protocol.Send) (protocol.Message, error)
 	Direct(context.Context, string) (protocol.Conversation, error)
+	DirectRequests(context.Context) ([]protocol.DirectRequest, error)
+	DeclineDirect(context.Context, string) error
+	BlockDirect(context.Context, string) error
+	UnblockDirect(context.Context, string) error
 	Stream(context.Context, string, int64) <-chan Event
 }
 type HTTP struct {
@@ -188,6 +192,20 @@ func (c *HTTP) Direct(ctx context.Context, username string) (protocol.Conversati
 	var out protocol.Conversation
 	err := c.request(ctx, "POST", "/v1/direct", map[string]string{"username": username}, &out)
 	return out, err
+}
+func (c *HTTP) DirectRequests(ctx context.Context) ([]protocol.DirectRequest, error) {
+	var out []protocol.DirectRequest
+	err := c.request(ctx, "GET", "/v1/direct/requests", nil, &out)
+	return out, err
+}
+func (c *HTTP) DeclineDirect(ctx context.Context, username string) error {
+	return c.request(ctx, "DELETE", "/v1/direct/requests/"+url.PathEscape(username), nil, nil)
+}
+func (c *HTTP) BlockDirect(ctx context.Context, username string) error {
+	return c.request(ctx, "PUT", "/v1/direct/blocks/"+url.PathEscape(username), nil, nil)
+}
+func (c *HTTP) UnblockDirect(ctx context.Context, username string) error {
+	return c.request(ctx, "DELETE", "/v1/direct/blocks/"+url.PathEscape(username), nil, nil)
 }
 func pause(ctx context.Context, d time.Duration) bool {
 	t := time.NewTimer(d)

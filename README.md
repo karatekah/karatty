@@ -23,7 +23,7 @@ go test -count=1 ./...
 
 - Invitaciones con caducidad/usos y registro con prueba de posesión Ed25519; desafío de un solo uso, sesión temporal y revocación administrativa.
 - Eliminación autenticada de cuenta, claves, sesiones, membresías y mensajes propios; los mensajes ajenos permanecen en un chat directo archivado y de solo lectura.
-- Canales asignados por invitación y chats directos; autorización por sesión/clave/usuario/membresía en cada operación.
+- Canales asignados por invitación y chats directos que requieren aceptación del destinatario; solicitudes de 7 días, rechazo y bloqueo. Autorización por sesión/clave/usuario/membresía en cada operación.
 - Mensajes persistentes, secuencia transaccional por conversación, ACK de commit y deduplicación durante 30 días, con conflicto al cambiar el contenido de un reintento dentro de ese plazo.
 - Historial paginado y eventos WSS con reconexión por secuencia; gateway Wish v2 autenticado al mismo núcleo y TUI Bubble Tea v2/Bubbles v2 compartida.
 - Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.

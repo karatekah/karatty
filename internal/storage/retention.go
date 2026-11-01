@@ -29,3 +29,11 @@ func PurgeExpiredMessages(ctx context.Context, db *pgxpool.Pool) (int64, error) 
 		}
 	}
 }
+
+func PurgeExpiredDirectRequests(ctx context.Context, db *pgxpool.Pool) (int64, error) {
+	result, err := db.Exec(ctx, "DELETE FROM direct_requests WHERE expires_at<=now()")
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

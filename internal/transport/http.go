@@ -173,6 +173,35 @@ func (a *API) Handler() http.Handler {
 		}
 		write(w, 200, out)
 	})
+	mux.HandleFunc("GET /v1/direct/requests", func(w http.ResponseWriter, r *http.Request) {
+		out, err := a.Chat.DirectRequests(r.Context(), token(r))
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("DELETE /v1/direct/requests/{username}", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Chat.DeclineDirect(r.Context(), token(r), r.PathValue("username")); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("PUT /v1/direct/blocks/{username}", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Chat.BlockDirect(r.Context(), token(r), r.PathValue("username")); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("DELETE /v1/direct/blocks/{username}", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Chat.UnblockDirect(r.Context(), token(r), r.PathValue("username")); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
 	mux.HandleFunc("GET /v1/conversations/{id}/messages", func(w http.ResponseWriter, r *http.Request) {
 		after, limit, err := cursor(r)
 		if err != nil {

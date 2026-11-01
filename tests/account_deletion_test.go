@@ -19,6 +19,13 @@ func TestDeleteAccountPreservesPeerMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !direct.Pending || direct.ID != "" {
+		t.Fatal("direct request opened a chat without acceptance")
+	}
+	direct, err = bob.Direct(f.ctx, "alice")
+	if err != nil || direct.Pending || direct.ID == "" {
+		t.Fatal("recipient could not accept direct request", err)
+	}
 	for _, conv := range []string{channel, direct.ID} {
 		if _, err = alice.Send(f.ctx, conv, protocol.Send{ClientID: "alice-" + conv, Body: "alice content"}); err != nil {
 			t.Fatal(err)

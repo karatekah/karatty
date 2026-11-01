@@ -359,7 +359,18 @@ func TestMembershipOrderDedupAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !dm.Pending || dm.ID != "" {
+		t.Fatal("direct request opened a chat without acceptance")
+	}
+	requests, err := bob.DirectRequests(f.ctx)
+	if err != nil || len(requests) != 1 || requests[0].Username != "alice" {
+		t.Fatal("direct request not visible to recipient", requests, err)
+	}
 	dm2, err := bob.Direct(f.ctx, "alice")
+	if err != nil || dm2.Pending || dm2.ID == "" {
+		t.Fatal("recipient could not accept direct", err)
+	}
+	dm, err = fresh.Direct(f.ctx, "bob")
 	if err != nil || dm.ID != dm2.ID {
 		t.Fatal("direct pair not canonical", err)
 	}

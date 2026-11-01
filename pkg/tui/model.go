@@ -30,6 +30,12 @@ type sent struct {
 	message    protocol.Message
 	err        error
 }
+type directResult struct {
+	action   string
+	chat     protocol.Conversation
+	requests []protocol.DirectRequest
+	err      error
+}
 type Model struct {
 	ctx           context.Context
 	backend       client.Backend
@@ -47,11 +53,13 @@ type Model struct {
 	pending       *protocol.Send
 	busy          bool
 	fatal         bool
+	requests      []protocol.DirectRequest
+	requestView   bool
 }
 
 func New(ctx context.Context, b client.Backend) *Model {
 	in := textinput.New()
-	in.Placeholder = "Escribe un mensaje"
+	in.Placeholder = "Mensaje o /comando"
 	in.CharLimit = 4096
 	in.Focus()
 	return &Model{ctx: ctx, backend: b, input: in, view: viewport.New(), width: 80, height: 24, status: "Conectando…"}
@@ -78,6 +86,7 @@ func (m *Model) selectRoom() tea.Cmd {
 	m.pending = nil
 	m.busy = false
 	m.fatal = false
+	m.requestView = false
 	m.view.SetContent("")
 	if len(m.rooms) == 0 {
 		m.status = "Sin conversaciones. Solicita una invitación a un canal."
@@ -91,6 +100,53 @@ func (m *Model) selectRoom() tea.Cmd {
 		m.status = "Conversación cerrada · solo lectura"
 	}
 	return wait(m.stream, m.generation)
+}
+func (m *Model) directCommand() tea.Cmd {
+	args := strings.Fields(m.input.Value())
+	if len(args) == 0 {
+		return nil
+	}
+	action := args[0]
+	if action == "/requests" && len(args) == 1 {
+		m.busy = true
+		m.input.Reset()
+		m.status = "Cargando solicitudes…"
+		return func() tea.Msg {
+			ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+			defer cancel()
+			requests, err := m.backend.DirectRequests(ctx)
+			return directResult{action: action, requests: requests, err: err}
+		}
+	}
+	if len(args) != 2 || !security.Identifier(args[1]) {
+		m.status = "Usa /requests o /direct, /decline, /block, /unblock USUARIO"
+		return nil
+	}
+	peer := args[1]
+	if action != "/direct" && action != "/decline" && action != "/block" && action != "/unblock" {
+		m.status = "Comando desconocido. Usa /requests o /direct, /decline, /block, /unblock USUARIO"
+		return nil
+	}
+	m.busy = true
+	m.input.Reset()
+	m.status = "Procesando…"
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+		defer cancel()
+		var result directResult
+		result.action = action
+		switch action {
+		case "/direct":
+			result.chat, result.err = m.backend.Direct(ctx, peer)
+		case "/decline":
+			result.err = m.backend.DeclineDirect(ctx, peer)
+		case "/block":
+			result.err = m.backend.BlockDirect(ctx, peer)
+		case "/unblock":
+			result.err = m.backend.UnblockDirect(ctx, peer)
+		}
+		return result
+	}
 }
 func (m *Model) send() tea.Cmd {
 	if m.pending == nil {
@@ -170,6 +226,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.input.Reset()
 		m.status = fmt.Sprintf("Guardado · ACK %d", v.message.Seq)
 		return m, nil
+	case directResult:
+		m.busy = false
+		if v.err != nil {
+			m.status = security.Display(v.err.Error())
+			return m, nil
+		}
+		if v.action == "/requests" {
+			m.requests = v.requests
+			m.requestView = true
+			m.renderMessages()
+			m.status = "Solicitudes · /direct USUARIO acepta · /decline USUARIO rechaza"
+			return m, nil
+		}
+		if v.action == "/direct" && v.chat.Pending {
+			m.status = "Solicitud enviada; espera la aceptación del destinatario"
+			return m, nil
+		}
+		return m, m.list()
 	case tea.KeyPressMsg:
 		switch v.String() {
 		case "ctrl+c", "ctrl+d":
@@ -207,6 +281,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
+			if strings.HasPrefix(m.input.Value(), "/") && !m.busy && m.pending == nil {
+				return m, m.directCommand()
+			}
 			if len(m.rooms) > 0 && m.rooms[m.selected].Closed {
 				m.status = "Conversación cerrada · solo lectura"
 				return m, nil
@@ -230,6 +307,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 func (m *Model) renderMessages() {
 	bottom := m.view.AtBottom()
+	if m.requestView {
+		lines := []string{"Solicitudes de chat directo:"}
+		if len(m.requests) == 0 {
+			lines = append(lines, "No tienes solicitudes pendientes.")
+		}
+		for _, request := range m.requests {
+			lines = append(lines, "• "+security.Display(request.Username))
+		}
+		lines = append(lines, "", "/direct USUARIO acepta · /decline USUARIO rechaza · /block USUARIO bloquea")
+		m.view.SetContent(strings.Join(lines, "\n"))
+		return
+	}
 	lines := make([]string, 0, len(m.messages))
 	for _, msg := range m.messages {
 		line := fmt.Sprintf("%6d  %s  %s", msg.Seq, security.Display(msg.Username), security.Display(msg.Body))
@@ -252,7 +341,7 @@ func (m *Model) View() tea.View {
 	title := "TERMLINK · alpha local · nombre provisional"
 	status := ansi.Truncate(m.status, m.width, "…")
 	header := ansi.Truncate(strings.Join(tabs, "  "), m.width, "…")
-	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab canal · PgUp/PgDn historial · Ctrl+L reconectar · Ctrl+C salir", m.width, "…")
+	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab chat · /requests solicitudes · /direct USUARIO · Ctrl+L recargar · Ctrl+C salir", m.width, "…")
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
