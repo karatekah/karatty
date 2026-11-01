@@ -690,7 +690,7 @@ func TestSSHAndNativeAcceptance(t *testing.T) {
 	}()
 	select {
 	case text := <-rendered:
-		if !strings.Contains(text, "TERMLINK") || !strings.Contains(text, "Hola desde SSH") {
+		if !strings.Contains(text, "Karatty") || !strings.Contains(text, "Hola desde SSH") {
 			t.Fatal("TUI did not render persisted messages")
 		}
 	case <-time.After(10 * time.Second):

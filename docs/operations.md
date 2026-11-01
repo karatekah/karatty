@@ -20,7 +20,7 @@ Ensayo local del 31 de octubre de 2026: `backup.sh` cifró y subió una copia al
 
 1. Elegir nombre y comprobar marca/dominio; contratar el `.dev` y preparar correo público de soporte y privacidad.
 2. Crear VPS y bucket privados, configurar DNS, TLS, SSH y remitente de correo verificado. Mantener credenciales fuera del repositorio.
-3. Publicar política de privacidad y condiciones con identidad del titular, contacto, proveedor de correo, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
+3. Completar y revisar el [borrador de privacidad](privacy-draft.md), publicar política y condiciones con identidad del titular, contacto, proveedor de correo, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
 4. Probar registro, recepción real de correo, recuperación, bloqueo, borrado de cuenta, purga horaria, respaldo, restauración y borrado remoto en el entorno contratado.
 5. Publicar ejecutables firmados o con hashes verificables en un canal público, conservar el repositorio fuente privado y hacer una prueba de instalación externa.
 

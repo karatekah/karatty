@@ -2,9 +2,11 @@ package tests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/karatekah/termlink/internal/storage"
 	"github.com/karatekah/termlink/pkg/protocol"
+	"golang.org/x/crypto/ssh"
 )
 
 func TestMessageRetention(t *testing.T) {
@@ -69,5 +71,35 @@ func TestMessageRetention(t *testing.T) {
 	page, err = alice.History(f.ctx, conv, 0, 100)
 	if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != retry.ID {
 		t.Fatalf("live message lost during batched purge: %+v %v", page, err)
+	}
+}
+
+func TestExpiredAuthRecordsArePurged(t *testing.T) {
+	f := setup(t)
+	alice, key, _ := f.register(t, "alice", "")
+	if err := alice.Logout(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	challenge, err := f.a.Challenge(f.ctx, protocol.ChallengeRequest{PublicKey: string(ssh.MarshalAuthorizedKey(key.PublicKey()))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.a.Invite(f.ctx, "", 1, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.Exec(f.ctx, "UPDATE auth_challenges SET expires_at=now()-interval '1 second' WHERE id=$1", challenge.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.Exec(f.ctx, "UPDATE invitations SET expires_at=now()-interval '1 second'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = storage.PurgeExpiredAuthRecords(f.ctx, f.db); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"sessions", "auth_challenges", "invitations"} {
+		var count int
+		if err = f.db.QueryRow(f.ctx, "SELECT count(*) FROM "+table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("%s retained expired authentication data: %d %v", table, count, err)
+		}
 	}
 }

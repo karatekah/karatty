@@ -45,3 +45,24 @@ func PurgeExpiredEmailChallenges(ctx context.Context, db *pgxpool.Pool) (int64, 
 	}
 	return result.RowsAffected(), nil
 }
+
+func PurgeExpiredAuthRecords(ctx context.Context, db *pgxpool.Pool) (int64, error) {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	var total int64
+	for _, query := range []string{
+		"DELETE FROM sessions WHERE expires_at<=now() OR revoked_at IS NOT NULL",
+		"DELETE FROM auth_challenges WHERE expires_at<=now()",
+		"DELETE FROM invitations WHERE expires_at<=now() OR remaining=0",
+	} {
+		result, e := tx.Exec(ctx, query)
+		if e != nil {
+			return total, e
+		}
+		total += result.RowsAffected()
+	}
+	return total, tx.Commit(ctx)
+}

@@ -13,7 +13,7 @@ $env:DATABASE_URL = "postgres://termlink:$env:TERMLINK_DB_PASSWORD@127.0.0.1:543
 New-Item -ItemType Directory -Force bin,.local | Out-Null
 go build -o bin/server.exe ./cmd/server
 go build -o bin/ssh-gateway.exe ./cmd/ssh-gateway
-go build -o bin/termlink.exe ./cmd/termlink
+go build -o bin/karatty.exe ./cmd/termlink
 go run ./scripts/devcert.go
 ./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
 ```
@@ -28,10 +28,10 @@ $inviteEve = ./bin/server.exe --invite --uses 1 --ttl 24h
 ssh-keygen -t ed25519 -f .local/alice
 ssh-keygen -t ed25519 -f .local/bob
 ssh-keygen -t ed25519 -f .local/eve
-$inviteAlice | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
-$inviteBob | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob --username bob --invitation-stdin
-$inviteEve | ./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/eve --username eve --invitation-stdin
-./bin/termlink.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+$inviteAlice | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
+$inviteBob | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob --username bob --invitation-stdin
+$inviteEve | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/eve --username eve --invitation-stdin
+./bin/karatty.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
 Las frases de claves cifradas se piden de forma oculta en la terminal, incluso al pasar una invitación por entrada estándar. Los permisos de Windows deben permitir acceso a las claves solo a su propietario; no se cambian ACL globales. Las invitaciones se pasan mediante variables/entrada estándar para no introducirlas literalmente en el historial de comandos. No compartirlas en logs.
@@ -48,23 +48,23 @@ Compara la huella mostrada por SSH con la del host local antes de aceptarla. Con
 El cliente conserva como máximo 500 mensajes en pantalla; el historial disponible de los últimos 30 días se consulta por páginas:
 
 ```powershell
-./bin/termlink.exe history --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
+./bin/karatty.exe history --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
 ssh -p 2222 -i .local/eve chat@127.0.0.1 history $channel 0
 ```
 
 El primero devuelve hasta 100 mensajes y `next`; úsalo como `--after` para la siguiente página. Eve recibe rechazo porque su invitación no da membresía al canal. Eve tampoco puede enviar ni suscribirse a sus eventos. La suite automatizada verifica los tres casos.
 
-Solicitar un chat directo: `termlink direct --peer bob` con los mismos flags de conexión. Devuelve `pending:true` y ningún ID. Bob ve la solicitud con `termlink requests` y la acepta con `termlink direct --peer alice`; entonces ambos ven el chat al recargar. Bob puede rechazarla con `termlink decline --peer alice` o bloquear a Alice con `termlink block --peer alice`; `termlink unblock --peer alice` permite recibir una solicitud nueva. En la TUI se usan `/requests`, `/direct USUARIO`, `/decline USUARIO`, `/block USUARIO` y `/unblock USUARIO`. Las solicitudes vencen a los 7 días. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
+Solicitar un chat directo: `karatty direct --peer bob` con los mismos flags de conexión. Devuelve `pending:true` y ningún ID. Bob ve la solicitud con `karatty requests` y la acepta con `karatty direct --peer alice`; entonces ambos ven el chat al recargar. Bob puede rechazarla con `karatty decline --peer alice` o bloquear a Alice con `karatty block --peer alice`; `karatty unblock --peer alice` permite recibir una solicitud nueva. En la TUI se usan `/requests`, `/direct USUARIO`, `/decline USUARIO`, `/block USUARIO` y `/unblock USUARIO`. Las solicitudes vencen a los 7 días. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
 
 ## Ensayo local del registro público
 
 El modo `server --public-signup` necesita `RESEND_API_KEY` y `TERMLINK_MAIL_FROM` en el entorno del servidor. El remitente debe pertenecer a un dominio verificado en el proveedor. Este modo activa automáticamente la purga horaria de mensajes vencidos; el registro por invitación queda desactivado. Después de configurar el remitente y arrancar el servidor con `--public-signup`, crea una clave Ed25519 y ejecuta:
 
 ```powershell
-./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --email alice@example.com
+./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --email alice@example.com
 ```
 
-El cliente solicita el código recibido por correo con entrada oculta. Al terminar muestra un código de recuperación una sola vez: guárdalo fuera del equipo con la clave SSH. Si se pierde esa clave, genera una nueva y ejecuta `termlink recover --key NUEVA_CLAVE --email alice@example.com` con los mismos flags de conexión; pedirá el código del correo y el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código de recuperación nuevo. Si se pierden tanto el acceso al correo como el código de recuperación, la cuenta no puede recuperarse por este flujo.
+El cliente solicita el código recibido por correo con entrada oculta. Al terminar muestra un código de recuperación una sola vez: guárdalo fuera del equipo con la clave SSH. Si se pierde esa clave, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --email alice@example.com` con los mismos flags de conexión; pedirá el código del correo y el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código de recuperación nuevo. Si se pierden tanto el acceso al correo como el código de recuperación, la cuenta no puede recuperarse por este flujo.
 
 ## Linux y macOS
 
@@ -77,15 +77,15 @@ docker compose -f deployments/compose.yml up -d db
 mkdir -p bin .local
 chmod 700 .local
 go build -o bin/server ./cmd/server
-go build -o bin/termlink ./cmd/termlink
+go build -o bin/karatty ./cmd/termlink
 go run ./scripts/devcert.go
 bin/server --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
 # En otra terminal con DATABASE_URL:
 channel=$(bin/server --channel general)
 invite=$(bin/server --invite --conversation "$channel" --uses 1)
 ssh-keygen -t ed25519 -f .local/alice
-printf '%s' "$invite" | bin/termlink register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
-bin/termlink chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+printf '%s' "$invite" | bin/karatty register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
+bin/karatty chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
 Las claves Unix se crean con modo 0600 dentro de directorios 0700. Si se copian de otra máquina, revisa propietario y permisos. La CA de desarrollo solo se confía en este cliente mediante `--ca-cert`; no se añade al almacén global. Caduca a los 30 días. La CA privada no se guarda. Para renovarla, mueve la carpeta TLS antigua a una copia privada y vuelve a generar certificados.
@@ -114,8 +114,8 @@ Las pruebas crean y eliminan un esquema aleatorio dentro de la base indicada. Ut
 
 Operaciones administrativas locales (requieren DATABASE_URL): `server --revoke-key 'SHA256:…'` y `server --revoke-member USER_ID --conversation CONVERSATION_ID`. El ID de usuario aparece al registrar; la huella de su clave se consulta con `ssh-keygen -lf ARCHIVO.pub`. La revocación no elimina el historial: bloquea nuevas operaciones y termina las suscripciones al siguiente sondeo (250 ms más el tiempo de consulta). Los datos ya entregados no se pueden retirar de la pantalla remota.
 
-El titular puede eliminar su cuenta con `termlink delete-account --server URL --ca-cert CA --key CLAVE --confirm-delete`. La operación es irreversible: borra su usuario, claves, sesiones, membresías y mensajes. Conserva los mensajes escritos por otros participantes; los chats directos afectados quedan en modo solo lectura para ellos. Los datos de respaldos seguirán su vencimiento independiente cuando se implemente antes de la alpha pública.
+El titular puede eliminar su cuenta con `karatty delete-account --server URL --ca-cert CA --key CLAVE --confirm-delete`. La operación es irreversible: borra su usuario, claves, sesiones, membresías y mensajes. Conserva los mensajes escritos por otros participantes; los chats directos afectados quedan en modo solo lectura para ellos. Los datos de respaldos seguirán su vencimiento independiente cuando se configure y compruebe antes de la alpha pública.
 
 Retención de mensajes: el historial oculta los mensajes después de 720 horas y conserva sus huecos de secuencia. `server --purge-expired-messages` elimina una vez todos los mensajes vencidos y muestra el número borrado. Para programar la purga al arrancar y cada hora, añade `--retention-30d` al comando de inicio de `server`; está desactivada por defecto en desarrollo. La purga borra también los identificadores de deduplicación, cuya garantía dura 30 días. Los respaldos necesitan una política de vencimiento separada antes de operar una alpha.
 
-Endpoints operativos: `GET /healthz` comprueba PostgreSQL; `GET /metrics` expone contadores sin contenidos y requiere una sesión Bearer válida además de una conexión loopback. Con el servidor nativo, ejecuta `termlink metrics` desde la misma máquina y con los mismos flags `--server`, `--ca-cert` y `--key` que `termlink history`. No confiar en cabeceras de proxy para identidad o dirección. En contenedor accedido por red puente `/metrics` puede devolver 403; publica métricas mediante un adaptador privado antes de operar en un VPS.
+Endpoints operativos: `GET /healthz` comprueba PostgreSQL; `GET /metrics` expone contadores sin contenidos y requiere una sesión Bearer válida además de una conexión loopback. Con el servidor nativo, ejecuta `karatty metrics` desde la misma máquina y con los mismos flags `--server`, `--ca-cert` y `--key` que `karatty history`. No confiar en cabeceras de proxy para identidad o dirección. En contenedor accedido por red puente `/metrics` puede devolver 403; publica métricas mediante un adaptador privado antes de operar en un VPS.
