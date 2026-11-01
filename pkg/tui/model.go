@@ -89,7 +89,7 @@ func (m *Model) selectRoom() tea.Cmd {
 	m.requestView = false
 	m.view.SetContent("")
 	if len(m.rooms) == 0 {
-		m.status = "Sin conversaciones. Solicita una invitación a un canal."
+		m.status = "Sin conversaciones. Usa /direct USUARIO para solicitar un chat."
 		return nil
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
