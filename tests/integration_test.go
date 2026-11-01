@@ -750,6 +750,11 @@ func TestNativeExecutable(t *testing.T) {
 	if err = json.Unmarshal(out, &page); err != nil || len(page.Messages) != 1 || page.Messages[0].Body != "from executable test" {
 		t.Fatal("CLI persisted history", err)
 	}
+	cmd = exec.CommandContext(f.ctx, binary, "metrics", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath)
+	out, err = cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "termlink_requests_total") {
+		t.Fatalf("CLI metrics failed: %v %s", err, out)
+	}
 	// Native executable -> authenticated SSH, then SSH -> a fresh executable.
 	_, bobKey, _ := f.register(t, "bob", conv)
 	addr, host := startSSH(t, f)

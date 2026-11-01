@@ -65,6 +65,7 @@ export TERMLINK_DB_PASSWORD=termlink-local-development-only
 export DATABASE_URL="postgres://termlink:$TERMLINK_DB_PASSWORD@127.0.0.1:5432/termlink?sslmode=disable"
 docker compose -f deployments/compose.yml up -d db
 mkdir -p bin .local
+chmod 700 .local
 go build -o bin/server ./cmd/server
 go build -o bin/termlink ./cmd/termlink
 go run ./scripts/devcert.go
@@ -103,4 +104,4 @@ Las pruebas crean y eliminan un esquema aleatorio dentro de la base indicada. Ut
 
 Operaciones administrativas locales (requieren DATABASE_URL): `server --revoke-key 'SHA256:…'` y `server --revoke-member USER_ID --conversation CONVERSATION_ID`. El ID de usuario aparece al registrar; la huella de su clave se consulta con `ssh-keygen -lf ARCHIVO.pub`. La revocación no elimina el historial: bloquea nuevas operaciones y termina las suscripciones al siguiente sondeo (250 ms más el tiempo de consulta). Los datos ya entregados no se pueden retirar de la pantalla remota.
 
-Endpoints operativos: `GET /healthz` comprueba PostgreSQL; `GET /metrics` expone contadores sin contenidos y solo acepta conexiones loopback. No confiar en cabeceras de proxy para identidad o dirección. En contenedor accedido por red puente `/metrics` puede devolver 403; publica métricas mediante un adaptador privado antes de operar en un VPS.
+Endpoints operativos: `GET /healthz` comprueba PostgreSQL; `GET /metrics` expone contadores sin contenidos y requiere una sesión Bearer válida además de una conexión loopback. Con el servidor nativo, ejecuta `termlink metrics` desde la misma máquina y con los mismos flags `--server`, `--ca-cert` y `--key` que `termlink history`. No confiar en cabeceras de proxy para identidad o dirección. En contenedor accedido por red puente `/metrics` puede devolver 403; publica métricas mediante un adaptador privado antes de operar en un VPS.

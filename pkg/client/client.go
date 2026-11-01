@@ -127,6 +127,28 @@ func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitatio
 func (c *HTTP) Logout(ctx context.Context) error {
 	return c.request(ctx, "DELETE", "/v1/session", nil, nil)
 }
+func (c *HTTP) Metrics(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.Base+"/metrics", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	resp, err := c.Transport.Do(req)
+	if err != nil {
+		return "", errors.New("server unavailable")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		var f protocol.Failure
+		_ = json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&f)
+		if f.Error == "" {
+			f.Error = "request failed"
+		}
+		return "", &Error{Status: resp.StatusCode, Message: f.Error}
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	return string(data), err
+}
 func (c *HTTP) List(ctx context.Context) ([]protocol.Conversation, error) {
 	var out []protocol.Conversation
 	err := c.request(ctx, "GET", "/v1/conversations", nil, &out)

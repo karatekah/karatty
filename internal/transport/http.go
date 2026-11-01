@@ -38,11 +38,14 @@ func NewAPI(a *auth.Service, c *chat.Service) *API {
 }
 func (a *API) Close() { a.cancel() }
 func token(r *http.Request) string {
-	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	parts := strings.Fields(r.Header.Get("Authorization"))
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	return parts[1]
 }
 func write(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
@@ -98,6 +101,10 @@ func (a *API) Handler() http.Handler {
 		ip := net.ParseIP(host)
 		if ip == nil || !ip.IsLoopback() {
 			w.WriteHeader(403)
+			return
+		}
+		if err := a.Auth.Verify(r.Context(), token(r)); err != nil {
+			failure(w, err)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain")
@@ -187,6 +194,7 @@ func (a *API) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /v1/conversations/{id}/events", a.events)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		a.Count.Add(1)
 		host, _, _ := net.SplitHostPort(r.RemoteAddr)
 		if !a.Requests.Allow(host) {

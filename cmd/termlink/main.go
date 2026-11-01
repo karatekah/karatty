@@ -54,9 +54,9 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "login", "list", "history", "send", "direct":
+	case "chat", "register", "login", "list", "history", "send", "direct", "metrics":
 	default:
-		return errors.New("commands: chat, register, login, list, history, send, direct")
+		return errors.New("commands: chat, register, login, list, history, send, direct, metrics")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -167,6 +167,13 @@ func run() error {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
+	case "metrics":
+		out, e := c.Metrics(ctx)
+		if e != nil {
+			return e
+		}
+		_, e = fmt.Print(out)
+		return e
 	case "send":
 		if *id == "" {
 			return errors.New("send requires --id (reuse it when retrying)")
