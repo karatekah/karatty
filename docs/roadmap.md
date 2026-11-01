@@ -1,6 +1,6 @@
 # Alcance y decisiones de producto
 
-Sprint 1: flujo funcional verificable, entorno local y CI. La alpha v0.1 requiere además recuperación, borrado de cuentas, política de datos, restauración de respaldos y revisión de límites operativos. No se abrirá un servicio en este sprint.
+Sprint 1: flujo funcional verificable, entorno local y CI. La alpha v0.1 requiere además recuperación, política de datos, restauración de respaldos y revisión de límites operativos. El borrado de cuentas ya funciona en la base activa; falta cubrir respaldos. No se abrirá un servicio sin completar estos puntos.
 
 Decisión del usuario (2026-10-31): retención de mensajes de **30 días** para la futura alpha, con borrado de contenido e identificadores y deduplicación garantizada solo durante ese plazo. El historial ya oculta mensajes vencidos y el servidor dispone de purga por lotes, manual o programada con `--retention-30d`. La programación permanece desactivada por defecto en desarrollo. Antes de activar una alpha faltan comunicación al usuario, vencimiento/restauración de respaldos y pruebas operativas de la programación.
 

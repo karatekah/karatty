@@ -127,6 +127,13 @@ func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitatio
 func (c *HTTP) Logout(ctx context.Context) error {
 	return c.request(ctx, "DELETE", "/v1/session", nil, nil)
 }
+func (c *HTTP) DeleteAccount(ctx context.Context) error {
+	if err := c.request(ctx, "DELETE", "/v1/account", nil, nil); err != nil {
+		return err
+	}
+	c.Token = ""
+	return nil
+}
 func (c *HTTP) Metrics(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.Base+"/metrics", nil)
 	if err != nil {

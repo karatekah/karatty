@@ -7,3 +7,6 @@ var Initial string
 
 //go:embed 002_retention.sql
 var Retention string
+
+//go:embed 003_account_deletion.sql
+var AccountDeletion string

@@ -787,4 +787,11 @@ func TestNativeExecutable(t *testing.T) {
 	if err = noArgs.Run(); err == nil {
 		t.Fatal("CLI accepted missing key")
 	}
+	cmd = exec.CommandContext(f.ctx, binary, "delete-account", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--confirm-delete")
+	if out, err = cmd.CombinedOutput(); err != nil {
+		t.Fatalf("CLI account deletion failed: %v %s", err, out)
+	}
+	if _, err = c.List(f.ctx); err == nil {
+		t.Fatal("CLI deletion left the account session active")
+	}
 }

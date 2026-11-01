@@ -36,14 +36,14 @@ func (s *Service) List(ctx context.Context, token string) ([]protocol.Conversati
 	if err != nil {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, "SELECT c.id,c.name,c.kind FROM conversations c JOIN memberships m ON m.conversation_id=c.id WHERE m.user_id=$1 ORDER BY c.name,c.id LIMIT 100 FOR SHARE OF m", uid)
+	rows, err := tx.Query(ctx, "SELECT c.id,c.name,c.kind,c.closed_at IS NOT NULL FROM conversations c JOIN memberships m ON m.conversation_id=c.id WHERE m.user_id=$1 ORDER BY c.name,c.id LIMIT 100 FOR SHARE OF m", uid)
 	if err != nil {
 		return nil, err
 	}
 	out := []protocol.Conversation{}
 	for rows.Next() {
 		var c protocol.Conversation
-		if err = rows.Scan(&c.ID, &c.Name, &c.Kind); err != nil {
+		if err = rows.Scan(&c.ID, &c.Name, &c.Kind, &c.Closed); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -107,7 +107,8 @@ func (s *Service) Send(ctx context.Context, token, conv string, r protocol.Send)
 	}
 	// Shared lock order with membership revocation: conversation, then membership.
 	var seq int64
-	err = tx.QueryRow(ctx, "SELECT next_seq FROM conversations WHERE id=$1 FOR UPDATE", conv).Scan(&seq)
+	var closed bool
+	err = tx.QueryRow(ctx, "SELECT next_seq,closed_at IS NOT NULL FROM conversations WHERE id=$1 FOR UPDATE", conv).Scan(&seq, &closed)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return m, security.ErrForbidden
 	}
@@ -116,6 +117,9 @@ func (s *Service) Send(ctx context.Context, token, conv string, r protocol.Send)
 	}
 	if err = member(ctx, tx, uid, conv); err != nil {
 		return m, err
+	}
+	if closed {
+		return m, security.ErrForbidden
 	}
 	// An expired ID can be reused only after removing its old message in this
 	// transaction. No expired body is returned through the retry ACK.
@@ -178,7 +182,7 @@ func (s *Service) Direct(ctx context.Context, token, username string) (protocol.
 	pair := a + ":" + b
 	c = protocol.Conversation{ID: security.ID(), Name: username, Kind: "direct"}
 	createdID := c.ID
-	err = tx.QueryRow(ctx, `INSERT INTO conversations(id,name,kind,direct_pair) VALUES($1,$2,'direct',$3) ON CONFLICT(direct_pair) DO UPDATE SET direct_pair=excluded.direct_pair RETURNING id,name,kind`, c.ID, "dm-"+strings.Join([]string{a[:6], b[:6]}, "-"), pair).Scan(&c.ID, &c.Name, &c.Kind)
+	err = tx.QueryRow(ctx, `INSERT INTO conversations(id,name,kind,direct_pair) VALUES($1,$2,'direct',$3) ON CONFLICT(direct_pair) DO UPDATE SET direct_pair=excluded.direct_pair RETURNING id,name,kind,closed_at IS NOT NULL`, c.ID, "dm-"+strings.Join([]string{a[:6], b[:6]}, "-"), pair).Scan(&c.ID, &c.Name, &c.Kind, &c.Closed)
 	if err != nil {
 		return c, err
 	}

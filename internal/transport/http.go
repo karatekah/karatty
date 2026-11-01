@@ -143,6 +143,13 @@ func (a *API) Handler() http.Handler {
 		}
 		w.WriteHeader(204)
 	})
+	mux.HandleFunc("DELETE /v1/account", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Auth.DeleteAccount(r.Context(), token(r)); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
 	mux.HandleFunc("GET /v1/conversations", func(w http.ResponseWriter, r *http.Request) {
 		out, err := a.Chat.List(r.Context(), token(r))
 		if err != nil {

@@ -87,6 +87,9 @@ func (m *Model) selectRoom() tea.Cmd {
 	m.cancel = cancel
 	m.stream = m.backend.Stream(ctx, m.rooms[m.selected].ID, 0)
 	m.status = "Sincronizando historial…"
+	if m.rooms[m.selected].Closed {
+		m.status = "Conversación cerrada · solo lectura"
+	}
 	return wait(m.stream, m.generation)
 }
 func (m *Model) send() tea.Cmd {
@@ -149,6 +152,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.renderMessages()
 			m.status = fmt.Sprintf("Conectado · SYNC %d", m.seq)
+			if m.rooms[m.selected].Closed {
+				m.status = "Conversación cerrada · solo lectura"
+			}
 		}
 		return m, wait(m.stream, m.generation)
 	case sent:
@@ -201,6 +207,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
+			if len(m.rooms) > 0 && m.rooms[m.selected].Closed {
+				m.status = "Conversación cerrada · solo lectura"
+				return m, nil
+			}
 			if m.input.Value() != "" && !security.Body(m.input.Value()) {
 				m.status = "Máximo 4096 bytes; sin saltos ni caracteres de control."
 				return m, nil

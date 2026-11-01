@@ -22,9 +22,10 @@ type Session struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 type Conversation struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Kind string `json:"kind"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Kind   string `json:"kind"`
+	Closed bool   `json:"closed"`
 }
 type Send struct {
 	ClientID string `json:"client_id"`
