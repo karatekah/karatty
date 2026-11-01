@@ -56,6 +56,16 @@ El primero devuelve hasta 100 mensajes y `next`; úsalo como `--after` para la s
 
 Solicitar un chat directo: `termlink direct --peer bob` con los mismos flags de conexión. Devuelve `pending:true` y ningún ID. Bob ve la solicitud con `termlink requests` y la acepta con `termlink direct --peer alice`; entonces ambos ven el chat al recargar. Bob puede rechazarla con `termlink decline --peer alice` o bloquear a Alice con `termlink block --peer alice`; `termlink unblock --peer alice` permite recibir una solicitud nueva. En la TUI se usan `/requests`, `/direct USUARIO`, `/decline USUARIO`, `/block USUARIO` y `/unblock USUARIO`. Las solicitudes vencen a los 7 días. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
 
+## Ensayo local del registro público
+
+El modo `server --public-signup` necesita `RESEND_API_KEY` y `TERMLINK_MAIL_FROM` en el entorno del servidor. El remitente debe pertenecer a un dominio verificado en el proveedor. Este modo activa automáticamente la purga horaria de mensajes vencidos; el registro por invitación queda desactivado. Después de configurar el remitente y arrancar el servidor con `--public-signup`, crea una clave Ed25519 y ejecuta:
+
+```powershell
+./bin/termlink.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --email alice@example.com
+```
+
+El cliente solicita el código recibido por correo con entrada oculta. Al terminar muestra un código de recuperación una sola vez: guárdalo fuera del equipo con la clave SSH. Si se pierde esa clave, genera una nueva y ejecuta `termlink recover --key NUEVA_CLAVE --email alice@example.com` con los mismos flags de conexión; pedirá el código del correo y el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código de recuperación nuevo. Si se pierden tanto el acceso al correo como el código de recuperación, la cuenta no puede recuperarse por este flujo.
+
 ## Linux y macOS
 
 Mismos comandos Go, Docker y SSH. Usa `export` y ejecutables sin `.exe`:

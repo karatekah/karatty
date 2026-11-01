@@ -13,7 +13,14 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type Service struct{ DB *pgxpool.Pool }
+type MailSender interface {
+	SendCode(context.Context, string, string, string) error
+}
+type Service struct {
+	DB           *pgxpool.Pool
+	Mail         MailSender
+	PublicSignup bool
+}
 
 func PublicKey(raw string) (ssh.PublicKey, string, error) {
 	if len(raw) > 8192 {
@@ -31,6 +38,9 @@ func PublicKey(raw string) (ssh.PublicKey, string, error) {
 }
 
 func (s *Service) Challenge(ctx context.Context, r protocol.ChallengeRequest) (protocol.Challenge, error) {
+	if s.PublicSignup && r.Username != "" {
+		return protocol.Challenge{}, security.ErrForbidden
+	}
 	_, canonical, err := PublicKey(r.PublicKey)
 	if err != nil {
 		return protocol.Challenge{}, err
@@ -74,6 +84,9 @@ func (s *Service) Finish(ctx context.Context, p protocol.Proof) (protocol.Sessio
 	err := s.DB.QueryRow(ctx, `DELETE FROM auth_challenges WHERE id=$1 AND expires_at>now() RETURNING payload,public_key,username,invitation_hash`, p.ID).Scan(&payload, &raw, &username, &invite)
 	if err != nil {
 		return protocol.Session{}, security.ErrUnauthorized
+	}
+	if username != "" && s.PublicSignup {
+		return protocol.Session{}, security.ErrForbidden
 	}
 	// Consume even invalid proofs so a challenge permits only one attempt.
 	key, _, err := PublicKey(raw)
@@ -215,7 +228,8 @@ func (s *Service) DeleteAccount(ctx context.Context, token string) error {
 		return err
 	}
 	var username string
-	if err = tx.QueryRow(ctx, "SELECT username FROM users WHERE id=$1 FOR UPDATE", uid).Scan(&username); err != nil {
+	var email *string
+	if err = tx.QueryRow(ctx, "SELECT username,email FROM users WHERE id=$1 FOR UPDATE", uid).Scan(&username, &email); err != nil {
 		return err
 	}
 	queries := []struct {
@@ -225,6 +239,7 @@ func (s *Service) DeleteAccount(ctx context.Context, token string) error {
 		{`UPDATE conversations SET direct_pair=NULL,name='Cuenta eliminada',closed_at=now()
 			WHERE kind='direct' AND (split_part(direct_pair,':',1)=$1 OR split_part(direct_pair,':',2)=$1)`, []any{uid}},
 		{`DELETE FROM auth_challenges WHERE username=$1 OR public_key IN (SELECT public_key FROM ssh_keys WHERE user_id=$2)`, []any{username, uid}},
+		{`DELETE FROM email_challenges WHERE username=$1 OR email=$2 OR user_id=$3`, []any{username, email, uid}},
 		{`DELETE FROM messages WHERE sender_id=$1`, []any{uid}},
 		{`DELETE FROM memberships WHERE user_id=$1`, []any{uid}},
 		{`DELETE FROM sessions WHERE user_id=$1`, []any{uid}},

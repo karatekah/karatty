@@ -22,6 +22,7 @@ go test -count=1 ./...
 ## Implementado
 
 - Invitaciones con caducidad/usos y registro con prueba de posesión Ed25519; desafío de un solo uso, sesión temporal y revocación administrativa.
+- Registro público opcional con correo verificado; recuperación de clave SSH con correo y código de recuperación mostrado una sola vez. El servidor exige configurar el proveedor de correo para activar este modo.
 - Eliminación autenticada de cuenta, claves, sesiones, membresías y mensajes propios; los mensajes ajenos permanecen en un chat directo archivado y de solo lectura.
 - Canales asignados por invitación y chats directos que requieren aceptación del destinatario; solicitudes de 7 días, rechazo y bloqueo. Autorización por sesión/clave/usuario/membresía en cada operación.
 - Mensajes persistentes, secuencia transaccional por conversación, ACK de commit y deduplicación durante 30 días, con conflicto al cambiar el contenido de un reintento dentro de ese plazo.
@@ -33,7 +34,7 @@ El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. 
 
 ## Pendiente antes de abrir la alpha
 
-Recuperación y segunda clave, activación y prueba operativa de la purga de **30 días** decidida por el usuario, retención/restauración de respaldos y revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta su vencimiento en respaldos. El historial ya oculta mensajes vencidos; la purga automática requiere `server --retention-30d` y no se activa por defecto en desarrollo. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. TERMLINK tiene conflictos de nombre conocidos y requiere investigación de marca/dominio antes de publicación comercial.
+Faltan la contratación/configuración del proveedor de correo y dominio, la prueba operativa de la purga de **30 días**, la retención/restauración de respaldos y la revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta su vencimiento en respaldos. El historial ya oculta mensajes vencidos; la purga automática se activa con `--retention-30d` o automáticamente con `--public-signup`. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. TERMLINK tiene conflictos de nombre conocidos y requiere investigación de marca/dominio antes de publicación comercial.
 
 ## Estructura y documentación
 

@@ -6,6 +6,10 @@ JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Au
 | --- | --- |
 | Desafío de registro/login | POST /v1/auth/challenge |
 | Firma SSH serializada (JSON codifica []byte como base64) | POST /v1/auth/proof |
+| Inicio de registro público con username, correo y clave pública | POST /v1/signup/start |
+| Prueba de clave y código recibido por correo | POST /v1/signup/complete |
+| Inicio de recuperación con correo y clave pública nueva | POST /v1/recovery/start |
+| Prueba de clave nueva, código de correo y código de recuperación | POST /v1/recovery/complete |
 | Cierre/revocación de sesión | DELETE /v1/session |
 | Eliminación de la cuenta autenticada | DELETE /v1/account |
 | Conversaciones accesibles (máximo 100 en sprint) | GET /v1/conversations |
@@ -25,5 +29,7 @@ JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Au
 `Conversation.closed` indica una conversación directa archivada tras la eliminación de uno de sus participantes. El otro puede leer sus propios mensajes hasta su vencimiento, pero no enviar nuevos. La eliminación borra la cuenta, sus claves, sesiones, membresías y mensajes; no borra los mensajes escritos por otras personas. Los respaldos requieren una política de vencimiento separada.
 
 `POST /v1/direct` devuelve `pending:true` y un ID vacío cuando crea o repite una solicitud. Solo la llamada recíproca del destinatario abre el chat y devuelve su ID. Las solicitudes vencen a los 7 días; el listado no muestra solicitudes vencidas. Rechazar elimina la solicitud entrante. Bloquear elimina las solicitudes de ambas direcciones, impide nuevas solicitudes y cierra el chat directo existente; ambas partes pueden leer el historial ya autorizado hasta su vencimiento. Desbloquear permite iniciar un nuevo intercambio, sin reabrir el chat archivado.
+
+El modo `server --public-signup` desactiva el registro por invitación y habilita el registro con correo verificado. `start` devuelve un desafío de firma; el servidor manda un código aleatorio al correo indicado si el usuario y el correo pueden registrarse. `complete` consume el desafío en un solo intento y exige la firma Ed25519 y el código. La respuesta contiene una sesión temporal y un código de recuperación generado al crear la cuenta, que se muestra una sola vez. Para recuperar una clave perdida, `recovery/start` envía otro código al correo verificado y recibe la clave pública nueva; `recovery/complete` exige firma con la nueva clave, código del correo y código de recuperación. Al completar, revoca todas las claves y sesiones anteriores y rota el código de recuperación. Los desafíos vencen en 10 minutos. Las respuestas de inicio no revelan si un correo ya tiene cuenta.
 
 SSH usa handshake de clave pública y una sesión de dominio por canal SSH. Shell con PTY abre la TUI. Comandos permitidos: `list`, `requests`, `direct USERNAME`, `decline USERNAME`, `block USERNAME`, `unblock USERNAME`, `history CONVERSATION AFTER`, `send CONVERSATION CLIENT_ID` con cuerpo por stdin. No se ejecutan comandos del sistema. El registro requiere primero asociar la clave mediante CLI/invitación; un usuario ya registrado accede después desde cualquier equipo que tenga su clave y un cliente SSH.
