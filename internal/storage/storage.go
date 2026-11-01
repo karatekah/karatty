@@ -23,7 +23,7 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// Migrate serializes initial schema installation, including separate gateway/API starts.
+// Migrate serializes schema installation, including separate gateway/API starts.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -34,6 +34,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	if _, err = tx.Exec(ctx, migrations.Initial); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, migrations.Retention); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

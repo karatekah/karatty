@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/karatekah/termlink/internal/auth"
 	"github.com/karatekah/termlink/internal/chat"
 	"github.com/karatekah/termlink/internal/security"
@@ -44,6 +45,8 @@ func run() error {
 	ttl := flag.Duration("ttl", 24*time.Hour, "invitation validity")
 	revokeKey := flag.String("revoke-key", "", "admin: key fingerprint")
 	revokeMember := flag.String("revoke-member", "", "admin: user ID")
+	retention30d := flag.Bool("retention-30d", false, "purge messages older than 30 days at startup and hourly")
+	purgeExpired := flag.Bool("purge-expired-messages", false, "admin: purge messages older than 30 days once")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -74,6 +77,12 @@ func run() error {
 		return a.RevokeKey(ctx, *revokeKey)
 	case *revokeMember != "":
 		return c.RevokeMember(ctx, *conversation, *revokeMember)
+	case *purgeExpired:
+		count, e := storage.PurgeExpiredMessages(ctx, db)
+		if e == nil {
+			fmt.Println(count)
+		}
+		return e
 	}
 	if err = transport.ValidateHTTP(*addr, *cert, *key, *dev); err != nil {
 		return err
@@ -107,6 +116,9 @@ func run() error {
 			result <- server.Serve(listener)
 		}
 	}()
+	if *retention30d {
+		go runRetention(ctx, db)
+	}
 	slog.Info("termlink started", "address", *addr, "ssh_enabled", *hostKey != "")
 	select {
 	case <-ctx.Done():
@@ -119,5 +131,23 @@ func run() error {
 			return nil
 		}
 		return err
+	}
+}
+
+func runRetention(ctx context.Context, db *pgxpool.Pool) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		count, err := storage.PurgeExpiredMessages(ctx, db)
+		if err != nil && ctx.Err() == nil {
+			slog.Error("message retention purge failed")
+		} else if err == nil {
+			slog.Info("message retention purge finished", "deleted", count)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }

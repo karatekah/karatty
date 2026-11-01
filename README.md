@@ -32,7 +32,7 @@ El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. 
 
 ## Pendiente antes de abrir la alpha
 
-Recuperación y segunda clave, eliminación de cuentas, purga de **30 días** decidida por el usuario, retención/restauración de respaldos y revisión de seguridad/privacidad. No hay purga automática de datos de desarrollo. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. TERMLINK tiene conflictos de nombre conocidos y requiere investigación de marca/dominio antes de publicación comercial.
+Recuperación y segunda clave, eliminación de cuentas, activación y prueba operativa de la purga de **30 días** decidida por el usuario, retención/restauración de respaldos y revisión de seguridad/privacidad. El historial ya oculta mensajes vencidos; la purga automática requiere `server --retention-30d` y no se activa por defecto en desarrollo. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. TERMLINK tiene conflictos de nombre conocidos y requiere investigación de marca/dominio antes de publicación comercial.
 
 ## Estructura y documentación
 
