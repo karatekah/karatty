@@ -99,6 +99,7 @@ func (b *Backend) Fingerprint(ctx context.Context, peer string) (string, error) 
 func (b *Backend) Verify(ctx context.Context, peer, fingerprint string) error {
 	return b.Secure.Verify(ctx, peer, fingerprint)
 }
+func (b *Backend) SelfFingerprint() string { return b.Secure.SelfFingerprint() }
 
 func sendEvent(ctx context.Context, out chan<- client.Event, event client.Event) bool {
 	select {

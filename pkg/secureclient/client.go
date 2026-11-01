@@ -239,6 +239,14 @@ func sameIdentity(a, b protocol.DeviceBundle) bool {
 	return a.UserID == b.UserID && a.SSHKey == b.SSHKey && a.IdentityEd == b.IdentityEd && a.IdentityCurve == b.IdentityCurve && bytes.Equal(a.SSHSignature, b.SSHSignature)
 }
 
+// SelfFingerprint is the value the user shares through an independent channel.
+func (c *Client) SelfFingerprint() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	h := sha256.Sum256([]byte(c.state.UserID + "\n" + c.state.SSHKey + "\n" + c.state.IdentityEd + "\n" + c.state.IdentityCurve))
+	return hex.EncodeToString(h[:])
+}
+
 // Fingerprint must be compared with the other person outside Karatty.
 func (c *Client) Fingerprint(ctx context.Context, username string) (string, error) {
 	bundle, err := c.http.Peer(ctx, username)

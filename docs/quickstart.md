@@ -1,6 +1,6 @@
 # Entorno local
 
-Requisitos: Go 1.27.3, PostgreSQL 17.11 (o Docker con Compose) y cliente OpenSSH. Los ejemplos levantan PostgreSQL con Docker; si ya tienes una instancia nativa, omite `docker compose ... up -d db` y ajusta `DATABASE_URL` a su host, puerto, usuario, contraseña y base. Compila sin CGo. Las dependencias exactas están en go.mod/go.sum. No se instala ni se publica un servidor remoto.
+Requisitos: Go 1.27.3, Rust 1.99.1, PostgreSQL 17.11 (o Docker con Compose) y cliente OpenSSH. Los ejemplos levantan PostgreSQL con Docker; si ya tienes una instancia nativa, omite `docker compose ... up -d db` y ajusta `DATABASE_URL` a su host, puerto, usuario, contraseña y base. Compila sin CGo. Las dependencias exactas están en go.mod/go.sum y crypto/Cargo.lock. No se instala ni se publica un servidor remoto.
 
 ## Windows / PowerShell
 
@@ -14,6 +14,8 @@ New-Item -ItemType Directory -Force bin,.local | Out-Null
 go build -o bin/server.exe ./cmd/server
 go build -o bin/ssh-gateway.exe ./cmd/ssh-gateway
 go build -o bin/karatty.exe ./cmd/termlink
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+Copy-Item crypto/target/release/karatty-crypto.exe bin/karatty-crypto.exe
 go run ./scripts/devcert.go
 ./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
 ```
@@ -31,7 +33,7 @@ ssh-keygen -t ed25519 -f .local/eve
 $inviteAlice | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
 $inviteBob | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob --username bob --invitation-stdin
 $inviteEve | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/eve --username eve --invitation-stdin
-./bin/karatty.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+./bin/karatty.exe chat --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
 Las frases de claves cifradas se piden de forma oculta en la terminal, incluso al pasar una invitación por entrada estándar. Los permisos de Windows deben permitir acceso a las claves solo a su propietario; no se cambian ACL globales. Las invitaciones se pasan mediante variables/entrada estándar para no introducirlas literalmente en el historial de comandos. No compartirlas en logs.
@@ -48,7 +50,7 @@ Compara la huella mostrada por SSH con la del host local antes de aceptarla. Con
 El cliente conserva como máximo 500 mensajes en pantalla; el historial disponible de los últimos 30 días se consulta por páginas:
 
 ```powershell
-./bin/karatty.exe history --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
+./bin/karatty.exe history --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
 ssh -p 2222 -i .local/eve chat@127.0.0.1 history $channel 0
 ```
 
@@ -58,13 +60,15 @@ Solicitar un chat directo: `karatty direct --peer bob` con los mismos flags de c
 
 ## Ensayo local del registro público
 
-Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-host-key`. Este modo permite registro con seudónimo y clave Ed25519, sin correo ni invitación; activa automáticamente la purga horaria de mensajes vencidos. Todavía no hay E2EE: úsalo solo en desarrollo local. Después de crear una clave Ed25519, ejecuta:
+Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-host-key`. Este modo permite registro con seudónimo y clave Ed25519, sin correo ni invitación; activa automáticamente la purga horaria de mensajes vencidos. El cliente TUI local cifra los directos, pero el servicio continúa restringido a loopback mientras se completan las pruebas y la operación. Después de crear una clave Ed25519, ejecuta:
 
 ```powershell
 ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --public
 ```
 
-El cliente muestra un código de recuperación una sola vez: guárdalo fuera del equipo. Si se pierde la clave SSH, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --username alice` con los mismos flags de conexión. El cliente pedirá el código de recuperación. La operación revoca todas las claves SSH y sesiones anteriores y entrega un código nuevo. Si se pierden tanto la clave SSH como el código, la cuenta no puede recuperarse. En este modo todavía puedes ensayar registro y aceptación de directos; el envío desde el cliente actual falla porque la API exige un sobre cifrado que la TUI aún no genera.
+El cliente muestra un código de recuperación una sola vez: guárdalo fuera del equipo. Después pide y confirma una frase secreta local de al menos 12 caracteres. Esta frase no sale del equipo; protege el historial legible y el estado del cifrado. Si se pierde, el archivo local no se puede abrir. El código de recuperación permite reemplazar la clave SSH, pero no restaura el historial E2EE anterior. Si se pierde la clave SSH, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --username alice` con los mismos flags de conexión; se pedirá el código guardado fuera del equipo.
+
+Para probar dos usuarios, registra también a Bob en otro directorio de estado (`--state-dir RUTA_ABSOLUTA`) y con otra clave SSH. Alice solicita `karatty direct --peer bob`; Bob acepta con `karatty direct --peer alice`. Cada persona abre `karatty chat` con su propia clave y servidor. En la TUI, `/myfingerprint` muestra la huella propia para compartir por otro medio; `/fingerprint USUARIO` muestra la del contacto. Compara las dos fuera de Karatty y escribe `/verify USUARIO HUELLA` en ambos equipos. Solo entonces se habilitan los envíos y la lectura de ese directo. El archivo local se desbloquea con la frase secreta en cada arranque.
 
 ## Linux y macOS
 
@@ -78,6 +82,8 @@ mkdir -p bin .local
 chmod 700 .local
 go build -o bin/server ./cmd/server
 go build -o bin/karatty ./cmd/termlink
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+cp crypto/target/release/karatty-crypto bin/karatty-crypto
 go run ./scripts/devcert.go
 bin/server --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
 # En otra terminal con DATABASE_URL:
@@ -85,7 +91,7 @@ channel=$(bin/server --channel general)
 invite=$(bin/server --invite --conversation "$channel" --uses 1)
 ssh-keygen -t ed25519 -f .local/alice
 printf '%s' "$invite" | bin/karatty register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
-bin/karatty chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+bin/karatty chat --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
 Las claves Unix se crean con modo 0600 dentro de directorios 0700. Si se copian de otra máquina, revisa propietario y permisos. La CA de desarrollo solo se confía en este cliente mediante `--ca-cert`; no se añade al almacén global. Caduca a los 30 días. La CA privada no se guarda. Para renovarla, mueve la carpeta TLS antigua a una copia privada y vuelve a generar certificados.

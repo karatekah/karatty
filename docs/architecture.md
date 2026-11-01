@@ -1,12 +1,14 @@
 # Arquitectura de Karatty
 
-Estado: prototipo previo a la alpha pública. Este documento describe el código actual. El diseño de E2EE aún está pendiente; ningún mensaje actual puede considerarse cifrado de extremo a extremo.
+Estado: prototipo previo a la alpha pública. Este documento describe el código actual. El modo público de ensayo usa E2EE local para directos; el modo anterior por invitación y SSH remoto siguen sin E2EE.
 
 ## Vista general
 
 ```mermaid
 flowchart LR
-    TUI[Cliente TUI local] -->|HTTPS y WSS| API[API Go]
+    TUI[Cliente TUI local] --> OLM[Olm local en Rust]
+    TUI --> STATE[Archivo local cifrado con frase secreta]
+    OLM -->|sobres por HTTPS y WSS| API[API Go]
     SSH[Gateway SSH del prototipo] --> CORE[Núcleo Go]
     API --> CORE
     CORE --> PG[(PostgreSQL)]
@@ -26,7 +28,7 @@ El proceso `cmd/server` ofrece la API y, opcionalmente, el gateway SSH. `cmd/ssh
 | Persistencia | PostgreSQL 17.11 con pgx; transacciones para secuencia, membresía y reintentos. |
 | Respaldos propuestos | `pg_dump`, `age` y `rclone`; el almacenamiento remoto aún no está contratado ni ensayado. |
 
-Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consulta [fuentes y versiones](dependencies.md). El [ADR 0003](adr/0003-e2ee-1to1.md) elige Olm con secreto futuro y la biblioteca Rust vodozemac para la alpha. `crypto/` y `pkg/cryptobridge` prueban el intercambio Go–Rust; `pkg/localstate` prueba un archivo cifrado con frase secreta. Ninguno se integra todavía con la TUI ni verifica E2EE extremo a extremo.
+Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consulta [fuentes y versiones](dependencies.md). El [ADR 0003](adr/0003-e2ee-1to1.md) elige Olm con secreto futuro y la biblioteca Rust vodozemac. `crypto/` ejecuta las operaciones Olm en el equipo; `pkg/secureclient` verifica identidades, persiste el ratchet y adapta el flujo a la TUI; `pkg/localstate` cifra el estado con Argon2id y XChaCha20-Poly1305. La prueba de integración intercambia mensajes reales entre dos clientes y comprueba que la base guarda sobres opacos.
 
 | Paquete | Responsabilidad actual |
 | --- | --- |
@@ -48,7 +50,7 @@ Cada operación comprueba la sesión, la clave, el usuario y, cuando corresponde
 
 PostgreSQL asigna la secuencia de cada conversación dentro de la transacción que inserta el mensaje. `client_id` permite reintentos idempotentes durante la retención; reutilizarlo con otro cuerpo produce conflicto. El ACK confirma persistencia, no lectura por la otra persona. El historial se pagina de 100 en 100 y el cliente puede reconectar desde la última secuencia recibida. WebSocket consulta el registro durable aproximadamente cada 250 ms y vuelve a verificar autorización en cada lote. No hay Redis ni cola de mensajes separada.
 
-La base **guarda actualmente el cuerpo en claro** en el prototipo por invitación. HTTPS/WSS protege el transporte, y los respaldos se cifran antes de salir del VPS, pero eso no impide que el servidor lea los mensajes. El modo de ensayo `--public-signup` exige un sobre con forma de texto cifrado, pero no comprueba criptográficamente su contenido y el cliente actual no lo genera. Antes de la alpha pública, la TUI tendrá que cifrar y descifrar localmente, verificar la identidad del interlocutor y enviar solo sobres Olm reales. La recuperación de cuenta no prometerá recuperar mensajes anteriores si se pierde la clave de descifrado.
+La base guarda el cuerpo en claro en el prototipo por invitación (`--legacy`). En `--public-signup`, el cliente oficial cifra localmente y la API guarda un sobre opaco; el servidor valida estructura y límites, pero no puede demostrar que un cliente modificado haya cifrado correctamente. La TUI exige verificar la huella del contacto fuera de Karatty antes de enviar o descifrar. La frase secreta local protege historial y estado del ratchet; perderla impide leer ese archivo. La recuperación de cuenta no promete recuperar mensajes anteriores.
 
 ## Retención y operación
 
