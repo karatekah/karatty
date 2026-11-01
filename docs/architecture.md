@@ -26,7 +26,7 @@ El proceso `cmd/server` ofrece la API y, opcionalmente, el gateway SSH. `cmd/ssh
 | Persistencia | PostgreSQL 17.11 con pgx; transacciones para secuencia, membresía y reintentos. |
 | Respaldos propuestos | `pg_dump`, `age` y `rclone`; el almacenamiento remoto aún no está contratado ni ensayado. |
 
-Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consulta [fuentes y versiones](dependencies.md). La elección del protocolo y biblioteca de E2EE se incorporará aquí cuando esté implementada y verificada.
+Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consulta [fuentes y versiones](dependencies.md). El [ADR 0003](adr/0003-e2ee-1to1.md) elige Olm con secreto futuro y la biblioteca Rust vodozemac para la alpha; aún no están integrados ni verificados en este código.
 
 | Paquete | Responsabilidad actual |
 | --- | --- |
