@@ -38,11 +38,17 @@ fn publish_keys(account: &mut Account, count: usize) -> Result<Vec<Value>, &'sta
     {
         return Err("invalid key count");
     }
+    let existing: std::collections::HashSet<String> = account
+        .one_time_keys()
+        .values()
+        .map(ToString::to_string)
+        .collect();
     account.generate_one_time_keys(count);
     let identity = account.identity_keys();
     let keys: Vec<Value> = account
         .one_time_keys()
         .values()
+        .filter(|key| !existing.contains(&key.to_string()))
         .map(|key| {
             let payload = format!("KARATTY-OTK-v1\n{}\n{}", identity.curve25519, key);
             json!({"key": key.to_base64(), "signature": account.sign(payload).to_base64()})
@@ -79,7 +85,7 @@ fn handle(request: Request) -> Result<Value, &'static str> {
             peer_one_time_key,
             plaintext,
         } => {
-            if plaintext.is_empty() || plaintext.len() > 4096 {
+            if plaintext.is_empty() || plaintext.len() > 6144 {
                 return Err("invalid plaintext length");
             }
             let account: AccountPickle =
@@ -171,7 +177,7 @@ mod tests {
     #[test]
     fn two_accounts_exchange_and_reject_tampering() {
         let alice = handle(Request::Create { one_time_keys: 1 }).unwrap();
-        let bob = handle(Request::Create { one_time_keys: 1 }).unwrap();
+        let bob = handle(Request::Create { one_time_keys: 2 }).unwrap();
         let first = handle(Request::Encrypt {
             account: alice["account"].clone(),
             session: None,

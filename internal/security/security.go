@@ -48,7 +48,7 @@ func Body(s string) bool {
 
 // Envelope validates the public-mode wire shape, not cryptographic correctness.
 func Envelope(s string) bool {
-	if len(s) == 0 || len(s) > 8192 {
+	if len(s) == 0 || len(s) > 12288 {
 		return false
 	}
 	var in struct {
@@ -72,7 +72,7 @@ func Envelope(s string) bool {
 		}
 	}
 	decoded, err := base64.RawStdEncoding.DecodeString(in.Message.Body)
-	return err == nil && len(decoded) >= 16 && len(decoded) <= 6144 && base64.RawStdEncoding.EncodeToString(decoded) == in.Message.Body
+	return err == nil && len(decoded) >= 16 && len(decoded) <= 8192 && base64.RawStdEncoding.EncodeToString(decoded) == in.Message.Body
 }
 
 // Display is defense in depth for untrusted text from any server or legacy row.

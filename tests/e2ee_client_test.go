@@ -1,0 +1,147 @@
+package tests
+
+import (
+	"encoding/base64"
+	"encoding/json"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/karatekah/termlink/internal/security"
+	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/termlink/pkg/secureclient"
+)
+
+func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
+	bin := os.Getenv("KARATTY_CRYPTO_BIN")
+	if bin == "" {
+		t.Skip("set KARATTY_CRYPTO_BIN to run the local Olm client")
+	}
+	f := setup(t)
+	f.a.PublicSignup = true
+	f.c.DirectOnly = true
+	f.c.CiphertextOnly = true
+	f.api.IdentityRequests = security.NewLimiter(1000, 1000)
+	aliceHTTP, bobHTTP := f.httpClient(t), f.httpClient(t)
+	aliceKey, bobKey := signer(t), signer(t)
+	aliceLogin, err := aliceHTTP.Login(f.ctx, aliceKey, "alice", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobLogin, err := bobHTTP.Login(f.ctx, bobKey, "bob", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliceDir, bobDir := t.TempDir(), t.TempDir()
+	passphrase := []byte("local passphrase 123")
+	alice, err := secureclient.Open(f.ctx, aliceHTTP, aliceKey, aliceLogin.UserID, passphrase, aliceDir, bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = alice.Close() })
+	bob, err := secureclient.Open(f.ctx, bobHTTP, bobKey, bobLogin.UserID, passphrase, bobDir, bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = bob.Close() })
+	if _, err = aliceHTTP.Direct(f.ctx, "bob"); err != nil {
+		t.Fatal(err)
+	}
+	direct, err := bobHTTP.Direct(f.ctx, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "unverified", Body: "secret"}); err == nil {
+		t.Fatal("sent to a peer without fingerprint verification")
+	}
+	bobFingerprint, err := alice.Fingerprint(f.ctx, "bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = alice.Verify(f.ctx, "bob", strings.Repeat("0", 64)); err == nil {
+		t.Fatal("accepted wrong fingerprint")
+	}
+	aliceFingerprint, err := bob.Fingerprint(f.ctx, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = alice.Verify(f.ctx, "bob", bobFingerprint); err != nil {
+		t.Fatal(err)
+	}
+	if err = bob.Verify(f.ctx, "alice", aliceFingerprint); err != nil {
+		t.Fatal(err)
+	}
+	first, err := alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "first", Body: "secreto de Alice"})
+	if err != nil || first.Body != "secreto de Alice" {
+		t.Fatal("first send failed", err)
+	}
+	raw, err := bobHTTP.History(f.ctx, direct.ID, 0, 100)
+	if err != nil || len(raw.Messages) != 1 || !security.Envelope(raw.Messages[0].Body) || strings.Contains(raw.Messages[0].Body, "secreto de Alice") {
+		t.Fatal("server persisted readable text", err)
+	}
+	received, err := bob.Sync(f.ctx, direct.ID, "alice")
+	if err != nil || len(received.Messages) != 1 || received.Messages[0].Body != "secreto de Alice" {
+		t.Fatal("Bob could not decrypt", err)
+	}
+	if _, err = bob.Send(f.ctx, direct.ID, "alice", protocol.Send{ClientID: "reply", Body: "respuesta de Bob"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = bob.Sync(f.ctx, direct.ID, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	conversation, err := alice.Sync(f.ctx, direct.ID, "bob")
+	if err != nil || len(conversation.Messages) != 2 || conversation.Messages[1].Body != "respuesta de Bob" {
+		t.Fatal("Alice could not decrypt the ratchet reply", err)
+	}
+	repeated, err := alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "first", Body: "secreto de Alice"})
+	if err != nil || repeated.ID != first.ID {
+		t.Fatal("confirmed retry changed message", err)
+	}
+	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "first", Body: "different"}); err != security.ErrConflict {
+		t.Fatal("accepted a changed retry", err)
+	}
+	if err = bob.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = secureclient.Open(f.ctx, bobHTTP, bobKey, bobLogin.UserID, []byte("wrong passphrase"), bobDir, bin); err == nil {
+		t.Fatal("wrong local passphrase unlocked archive")
+	}
+	bob, err = secureclient.Open(f.ctx, bobHTTP, bobKey, bobLogin.UserID, passphrase, bobDir, bin)
+	if err != nil || len(bob.Archive(direct.ID)) != 2 {
+		t.Fatal("encrypted local archive did not survive restart", err)
+	}
+	large := strings.Repeat("x", 4096)
+	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "large", Body: large}); err != nil {
+		t.Fatal("valid maximum length message failed", err)
+	}
+	received, err = bob.Sync(f.ctx, direct.ID, "alice")
+	if err != nil || len(received.Messages) != 1 || received.Messages[0].Body != large {
+		t.Fatal("maximum length message did not round trip", err)
+	}
+	if _, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "tamper", Body: "must not display"}); err != nil {
+		t.Fatal(err)
+	}
+	var envelope map[string]any
+	var rawText string
+	if err = f.db.QueryRow(f.ctx, "SELECT body FROM messages WHERE client_id='tamper'").Scan(&rawText); err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal([]byte(rawText), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	message := envelope["message"].(map[string]any)
+	message["body"] = base64.RawStdEncoding.EncodeToString(make([]byte, 64))
+	damaged, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.Exec(f.ctx, "UPDATE messages SET body=$1 WHERE client_id='tamper'", string(damaged)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = bob.Sync(f.ctx, direct.ID, "alice"); err == nil {
+		t.Fatal("tampered ciphertext was accepted")
+	}
+	if len(bob.Archive(direct.ID)) != 3 {
+		t.Fatal("tampered plaintext entered local archive")
+	}
+}
