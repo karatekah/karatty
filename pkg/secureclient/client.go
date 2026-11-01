@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -45,6 +46,12 @@ type outgoing struct {
 	Envelope       string    `json:"envelope"`
 	CreatedAt      time.Time `json:"created_at"`
 }
+type UncertainMessage struct {
+	ConversationID string    `json:"conversation_id"`
+	ClientID       string    `json:"client_id"`
+	Body           string    `json:"body"`
+	CreatedAt      time.Time `json:"created_at"`
+}
 type disk struct {
 	Version       int                                   `json:"version"`
 	UserID        string                                `json:"user_id"`
@@ -60,6 +67,8 @@ type disk struct {
 	Archive       map[string][]protocol.Message         `json:"archive"`
 	Cursor        map[string]int64                      `json:"cursor"`
 	Reverified    map[string]bool                       `json:"reverified"`
+	Uncertain     []outgoing                            `json:"uncertain"`
+	NeedsBaseline bool                                  `json:"needs_baseline"`
 }
 type Client struct {
 	mu     sync.Mutex
@@ -89,7 +98,7 @@ func stringField(data map[string]json.RawMessage, field string) (string, error) 
 	return value, nil
 }
 func newDisk(uid, sshKey string) disk {
-	return disk{Version: 1, UserID: uid, SSHKey: sshKey, Pins: map[string]protocol.DeviceBundle{}, Sessions: map[string]map[string]json.RawMessage{}, Active: map[string]string{}, Outbox: map[string]outgoing{}, Archive: map[string][]protocol.Message{}, Cursor: map[string]int64{}, Reverified: map[string]bool{}}
+	return disk{Version: 1, UserID: uid, SSHKey: sshKey, Pins: map[string]protocol.DeviceBundle{}, Sessions: map[string]map[string]json.RawMessage{}, Active: map[string]string{}, Outbox: map[string]outgoing{}, Archive: map[string][]protocol.Message{}, Cursor: map[string]int64{}, Reverified: map[string]bool{}, NeedsBaseline: true}
 }
 func (c *Client) save(next disk) error {
 	// shortcut: the alpha rewrites one bounded encrypted file per change.
@@ -108,6 +117,13 @@ func (c *Client) save(next disk) error {
 			delete(next.Outbox, key)
 		}
 	}
+	keptUncertain := next.Uncertain[:0]
+	for _, item := range next.Uncertain {
+		if !item.CreatedAt.Before(cutoff) {
+			keptUncertain = append(keptUncertain, item)
+		}
+	}
+	next.Uncertain = keptUncertain
 	data, err := json.Marshal(next)
 	if err == nil {
 		err = c.store.Save(data)
@@ -161,10 +177,6 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 			return nil, errors.New("invalid local crypto identity")
 		}
 		c.state.IdentityEd, c.state.IdentityCurve, c.state.Account = identity.Ed, identity.Curve, created["account"]
-		if err = c.save(c.state); err != nil {
-			store.Close()
-			return nil, err
-		}
 	} else if err = json.Unmarshal(data, &c.state); err != nil || c.state.Version != 1 || c.state.UserID != uid || c.state.SSHKey != sshKey || len(c.state.Account) == 0 || c.state.IdentityEd == "" || c.state.IdentityCurve == "" {
 		store.Close()
 		return nil, errors.New("local E2EE state belongs to another key or is invalid")
@@ -176,6 +188,34 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 	if c.state.Reverified == nil {
 		c.state.Reverified = map[string]bool{}
 	}
+	oldStores, oldStates, err := olderDevices(root, deviceRoot, http.Base, uid, passphrase)
+	if err != nil {
+		store.Close()
+		return nil, err
+	}
+	defer func() {
+		for _, old := range oldStores {
+			_ = old.Close()
+		}
+	}()
+	for _, previous := range oldStates {
+		for _, messages := range previous.Archive {
+			for _, message := range messages {
+				appendArchive(&c.state, message)
+			}
+		}
+		for peer, bundle := range previous.Pins {
+			if _, found := c.state.Pins[peer]; !found {
+				c.state.Pins[peer] = bundle
+			}
+		}
+		for _, item := range previous.Outbox {
+			appendUncertain(&c.state, item)
+		}
+		for _, item := range previous.Uncertain {
+			appendUncertain(&c.state, item)
+		}
+	}
 	if err = c.save(c.state); err != nil {
 		store.Close()
 		return nil, err
@@ -186,13 +226,90 @@ func Open(ctx context.Context, http *client.HTTP, signer ssh.Signer, uid string,
 			return nil, err
 		}
 	}
-	if createdNew {
+	if c.state.NeedsBaseline {
 		if err = c.baseline(ctx); err != nil {
 			store.Close()
 			return nil, err
 		}
 	}
+	for _, old := range oldStores {
+		if err = old.Remove(); err != nil {
+			store.Close()
+			return nil, err
+		}
+	}
 	return c, nil
+}
+
+func appendUncertain(state *disk, item outgoing) {
+	for _, old := range state.Uncertain {
+		if old.ConversationID == item.ConversationID && old.ClientID == item.ClientID {
+			return
+		}
+	}
+	state.Uncertain = append(state.Uncertain, item)
+}
+
+func olderDevices(root, current, server, uid string, passphrase []byte) ([]*localstate.Store, []disk, error) {
+	dirs, err := filepath.Glob(filepath.Join(root, "device-*"))
+	if err != nil {
+		return nil, nil, err
+	}
+	var stores []*localstate.Store
+	var states []disk
+	for _, dir := range dirs {
+		if dir == current {
+			continue
+		}
+		info, statErr := os.Lstat(dir)
+		if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			for _, held := range stores {
+				_ = held.Close()
+			}
+			return nil, nil, errors.New("invalid previous local device path")
+		}
+		if _, err = os.Stat(localstate.FilePath(dir, server, uid)); errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			for _, held := range stores {
+				_ = held.Close()
+			}
+			return nil, nil, err
+		}
+		old, data, openErr := localstate.Open(dir, server, uid, passphrase)
+		if openErr != nil {
+			for _, held := range stores {
+				_ = held.Close()
+			}
+			return nil, nil, errors.New("unlock the previous local device before rotating")
+		}
+		var state disk
+		if json.Unmarshal(data, &state) != nil || state.Version != 1 || state.UserID != uid {
+			_ = old.Close()
+			for _, held := range stores {
+				_ = held.Close()
+			}
+			return nil, nil, errors.New("invalid previous local device")
+		}
+		stores = append(stores, old)
+		states = append(states, state)
+	}
+	return stores, states, nil
+}
+
+func (c *Client) UncertainCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.state.Uncertain)
+}
+func (c *Client) Uncertain() []UncertainMessage {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]UncertainMessage, 0, len(c.state.Uncertain))
+	for _, item := range c.state.Uncertain {
+		out = append(out, UncertainMessage{ConversationID: item.ConversationID, ClientID: item.ClientID, Body: item.Body, CreatedAt: item.CreatedAt})
+	}
+	return out
 }
 func (c *Client) Close() error { return c.store.Close() }
 
@@ -227,6 +344,7 @@ func (c *Client) baseline(ctx context.Context) error {
 		}
 		next.Cursor[room.ID] = after
 	}
+	next.NeedsBaseline = false
 	return c.save(next)
 }
 func (c *Client) upload(ctx context.Context) error {

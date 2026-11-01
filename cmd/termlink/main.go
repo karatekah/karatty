@@ -66,12 +66,12 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending", "uncertain":
 	case "version":
 		fmt.Println("Karatty " + version)
 		return nil
 	default:
-		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, reverify, discard-pending, metrics, delete-account, version")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, reverify, discard-pending, uncertain, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -186,7 +186,7 @@ func run() error {
 		_ = c.Logout(end)
 	}()
 	var secure *secureclient.Backend
-	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending")) {
+	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending" || command == "uncertain")) {
 		if command == "register" {
 			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
 		}
@@ -231,6 +231,9 @@ func run() error {
 		}
 		defer device.Close()
 		secure = &secureclient.Backend{HTTP: c, Secure: device}
+		if pending := device.UncertainCount(); pending > 0 {
+			fmt.Fprintf(os.Stderr, "%d envíos de un dispositivo anterior tienen entrega incierta. Usa 'karatty uncertain' para revisarlos.\n", pending)
+		}
 	}
 	switch command {
 	case "register":
@@ -320,6 +323,11 @@ func run() error {
 		}
 		fmt.Printf("Descartados %d envíos pendientes; comprueba si el servidor ya los recibió.\n", count)
 		return nil
+	case "uncertain":
+		if secure == nil {
+			return errors.New("uncertain requires the local encrypted client")
+		}
+		return json.NewEncoder(os.Stdout).Encode(secure.Secure.Uncertain())
 	case "decline", "block", "unblock":
 		if *peer == "" {
 			return errors.New("provide --peer with the other username")
