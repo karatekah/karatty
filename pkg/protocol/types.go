@@ -32,6 +32,7 @@ type Session struct {
 	UserID       string    `json:"user_id"`
 	ExpiresAt    time.Time `json:"expires_at"`
 	RecoveryCode string    `json:"recovery_code,omitempty"`
+	PublicMode   bool      `json:"public_mode"`
 }
 type Conversation struct {
 	ID      string `json:"id"`

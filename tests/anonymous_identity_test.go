@@ -23,7 +23,7 @@ func TestAnonymousSignupAndOfflineRecovery(t *testing.T) {
 	aliceKey := signer(t)
 	alice := f.httpClient(t)
 	registered, err := alice.Login(f.ctx, aliceKey, "alice", "")
-	if err != nil || registered.Token == "" || len(registered.RecoveryCode) != 48 {
+	if err != nil || registered.Token == "" || len(registered.RecoveryCode) != 48 || !registered.PublicMode {
 		t.Fatalf("anonymous signup failed: %+v %v", registered, err)
 	}
 	var hash string

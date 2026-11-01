@@ -138,6 +138,7 @@ func (s *Service) Finish(ctx context.Context, p protocol.Proof) (protocol.Sessio
 		return session, err
 	}
 	session.RecoveryCode = recoveryCode
+	session.PublicMode = s.PublicSignup
 	return session, tx.Commit(ctx)
 }
 

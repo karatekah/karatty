@@ -2,6 +2,8 @@
 
 JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Authorization: Bearer SESSION_TOKEN`; no se admiten tokens en URLs. Respuestas con `Cache-Control: no-store`. Errores: 400 entrada inválida, 401 autenticación, 403 membresía, 409 ID reutilizado con contenido distinto, 429 límite. Errores internos no incluyen consultas ni datos.
 
+La respuesta de autenticación incluye `public_mode`. El cliente local exige el flujo cifrado cuando vale `true`; el CLI legado `--legacy` se limita al servidor de invitaciones para desarrollo local.
+
 | Operación | Ruta |
 | --- | --- |
 | Desafío de registro/login | POST /v1/auth/challenge |
