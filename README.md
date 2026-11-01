@@ -45,4 +45,4 @@ Faltan E2EE verificable en chats directos 1:1, eliminar el acceso a mensajes en 
 [Borrador de privacidad (no publicable aún)](docs/privacy-draft.md)
 [Preparación de la publicación](docs/release.md) · [Contribuir](CONTRIBUTING.md)
 
-La [guía de publicación](docs/release.md) reúne las comprobaciones para abrir este repositorio y distribuir una versión verificable. Aún no se ha elegido una licencia pública; hasta entonces, la visibilidad futura del código no concede permisos de reutilización. Las dependencias conservan sus licencias propias.
+La [guía de publicación](docs/release.md) reúne las comprobaciones para abrir este repositorio y distribuir una versión verificable. El código propio se ofrece bajo [Apache-2.0](LICENSE). Las dependencias conservan sus licencias propias.
