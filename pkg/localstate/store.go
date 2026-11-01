@@ -36,6 +36,12 @@ type Store struct {
 	unlock func() error
 }
 
+// FilePath identifies one account file without opening it.
+func FilePath(root, server, uid string) string {
+	h := sha256.Sum256([]byte(server + "\n" + uid))
+	return filepath.Join(root, "state-"+hex.EncodeToString(h[:])+".json")
+}
+
 // Open locks one account and returns its decrypted contents, if present.
 // root must be a private application directory; the caller clears passphrase.
 func Open(root, server, uid string, passphrase []byte) (*Store, []byte, error) {
@@ -90,6 +96,16 @@ func Open(root, server, uid string, passphrase []byte) (*Store, []byte, error) {
 	}
 	_ = s.Close()
 	return nil, nil, err
+}
+
+// Remove deletes the encrypted account file while this Store holds its lock.
+func (s *Store) Remove() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.lock == nil {
+		return errors.New("local state unavailable")
+	}
+	return os.Remove(s.path)
 }
 
 func (s *Store) derive(passphrase []byte) {

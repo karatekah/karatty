@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -185,12 +186,22 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	if err == nil {
 		t.Fatal("offline send unexpectedly succeeded")
 	}
+	bobTransport := bobHTTP.Transport.Transport
+	bobHTTP.Transport.Transport = rejectMessagePost{next: bobTransport}
+	_, err = bob.Send(f.ctx, direct.ID, "alice", protocol.Send{ClientID: "bob-uncertain", Body: "revisar entrega"})
+	bobHTTP.Transport.Transport = bobTransport
+	if err == nil {
+		t.Fatal("Bob's offline send unexpectedly succeeded")
+	}
 	newBobKey := signer(t)
 	challenge, err := bobHTTP.StartRecovery(f.ctx, newBobKey, "bob")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = bobHTTP.CompleteRecovery(f.ctx, newBobKey, challenge, bobLogin.RecoveryCode); err != nil {
+		t.Fatal(err)
+	}
+	if err = bob.Close(); err != nil {
 		t.Fatal(err)
 	}
 	recoveredHTTP := f.httpClient(t)
@@ -202,6 +213,17 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 		t.Fatal("new SSH key could not create a fresh local device", err)
 	}
 	t.Cleanup(func() { _ = recoveredBob.Close() })
+	if len(recoveredBob.Archive(direct.ID)) != 4 {
+		t.Fatal("new device did not preserve the encrypted local archive")
+	}
+	uncertain := recoveredBob.Uncertain()
+	if len(uncertain) != 1 || uncertain[0].ClientID != "bob-uncertain" || uncertain[0].Body != "revisar entrega" {
+		t.Fatal("old pending send was silently lost during migration")
+	}
+	files, err := filepath.Glob(filepath.Join(bobDir, "device-*", "state-*.json"))
+	if err != nil || len(files) != 1 {
+		t.Fatal("old encrypted state file was not retired after migration", err)
+	}
 	newFingerprint, err := alice.Fingerprint(f.ctx, "bob")
 	if err != nil || newFingerprint != recoveredBob.SelfFingerprint() || newFingerprint == bobFingerprint {
 		t.Fatal("recovered device identity was not rotated", err)
