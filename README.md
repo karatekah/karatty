@@ -40,7 +40,7 @@ Faltan E2EE verificable en chats directos 1:1, eliminar el acceso a mensajes en 
 
 `cmd/server`, `cmd/ssh-gateway`, `cmd/termlink`; `internal/auth`, `chat`, `storage`, `security`, `transport`; `pkg/tui`, `client`, `protocol`; `migrations`, `tests`, `deployments`, `docs`. Los límites reales de paquetes se explican en el [ADR 0001](docs/adr/0001-foundation.md), y la autenticación en el [ADR 0002](docs/adr/0002-authentication.md).
 
-[Arquitectura y tecnologías](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
+[Arquitectura y tecnologías](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Reportar vulnerabilidades](SECURITY.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
 [Operación y respaldos para la alpha](docs/operations.md)
 [Borrador de privacidad (no publicable aún)](docs/privacy-draft.md)
 [Preparación de la publicación](docs/release.md) · [Contribuir](CONTRIBUTING.md)
