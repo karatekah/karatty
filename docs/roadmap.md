@@ -9,7 +9,7 @@ La primera alpha es software para usar en un equipo o una red local: servidor pr
 - Archivo local protegido con frase secreta, reintentos persistidos y un dispositivo por cuenta.
 - Retención de 720 horas: se ocultan y purgan cuerpos e identificadores vencidos; la deduplicación se garantiza solo durante esos 30 días. La purga se activa automáticamente en `--public-signup`. Las copias externas y equipos apagados tienen límites distintos.
 - Código, documentación y ejecutables públicos en GitHub bajo Apache-2.0 al completar las [comprobaciones de publicación](release.md). El repositorio permanece privado mientras se verifican.
-- Pruebas reproducibles y límites en [verification.md](verification.md), incluida la validación pendiente de la LAN entre dos equipos físicos y el bloqueo local de Defender del servidor Windows.
+- Pruebas reproducibles y límites en [verification.md](verification.md), incluido el ensayo de dos TUI Windows tras restaurar el ejecutable desde la cuarentena de Defender. La LAN entre dos equipos físicos y el comportamiento de la detección en otras instalaciones siguen sin comprobarse.
 
 ## Servicio alojado futuro
 

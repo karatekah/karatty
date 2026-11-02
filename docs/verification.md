@@ -24,7 +24,17 @@ Esta matriz describe pruebas reproducibles del código para la alpha local/LAN. 
 
 También pasaron `go vet ./...`, `go test -count=1 ./...` con base y puente configurados, `go build ./cmd/...`, las pruebas del generador de certificados y la comprobación de enlaces Markdown relativos. Compilar con éxito no implica que el antivirus permita ejecutar el archivo resultante.
 
-La compilación del servidor terminó, pero al ejecutarlo en la IP privada Windows Defender bloqueó `.local/lan-alpha/server.exe` con la detección `Behavior:Win32/DefenseEvasion.A!ml`. No se desactivaron protecciones ni se añadió una exclusión. La detección no se ha resuelto ni se ha demostrado que sea un falso positivo. Por ello, el ensayo del servidor nativo Windows por la IP de LAN quedó pendiente; no se afirma que ese despliegue haya pasado.
+En el intento inicial, la compilación del servidor terminó, pero al ejecutarlo en la IP privada Windows Defender bloqueó `.local/lan-alpha/server.exe` con la detección `Behavior:Win32/DefenseEvasion.A!ml`. No se desactivaron protecciones ni se añadió una exclusión. La detección no se ha resuelto ni se ha demostrado que sea un falso positivo. Por ello, el ensayo del servidor nativo Windows por la IP de LAN quedó pendiente; no se afirma que ese despliegue haya pasado.
+
+### Ensayo nativo tras restaurar el archivo
+
+Posteriormente, el usuario restauró `.local/defender-review/server.exe` desde la cuarentena de Windows. Esa compilación del código `4c0356f` tiene SHA-256 `9a81de63cc5149d551bcc4abc3cf0b6a8b83b8658a58d6fc819bb8fe7db830f1`. Después pasaron la ejecución de `--help` y el arranque del servidor nativo en `https://127.0.0.1:28443`, en modo E2EE y sin gateway SSH.
+
+Se extrajo el paquete Windows `v0.1.0-alpha.1` de ese mismo commit y se abrieron dos TUI nativas en terminales ConPTY del mismo equipo. Se probaron registro con claves distintas y frase secreta local, solicitud y aceptación del directo, intercambio de las huellas propias y verificación de ambos contactos. Alice envió un mensaje y Bob respondió; ambos mensajes aparecieron en el otro cliente y recibieron ACK con secuencias 1 y 2. Tras cerrar y volver a abrir las dos TUI, ambas recuperaron los dos mensajes y sincronizaron hasta la secuencia 2.
+
+La consulta a PostgreSQL comprobó dos sobres con estructura E2EE y ausencia de ambos textos de prueba en los cuerpos almacenados. Los textos tampoco aparecieron en los logs operativos del servidor. Al terminar se cerraron los clientes y se detuvo el servidor de ensayo.
+
+La protección en tiempo real y el monitor de comportamiento de Defender permanecieron activos, con firmas `1.463.83.0`. Durante esta prueba no se observó una nueva detección para ese ejecutable. Esto valida esa compilación tras la restauración local en este equipo; no confirma que la clasificación anterior fuera un falso positivo ni garantiza el comportamiento de otras instalaciones de Windows. No se enviaron muestras a Microsoft.
 
 No se dispone de una segunda máquina en esta tarea. La conversación entre **dos equipos físicos de la LAN** sigue sin comprobarse. La [guía](quickstart.md) describe cómo realizarla; las pruebas de certificados no demuestran la conectividad entre máquinas.
 
