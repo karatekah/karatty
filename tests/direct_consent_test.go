@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/karatekah/termlink/pkg/client"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/client"
+	"github.com/karatekah/karatty/pkg/protocol"
 )
 
 func TestDirectConsentDeclineAndBlock(t *testing.T) {

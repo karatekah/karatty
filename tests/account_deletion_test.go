@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/protocol"
 	"golang.org/x/crypto/ssh"
 )
 

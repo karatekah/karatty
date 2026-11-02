@@ -15,11 +15,11 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/karatekah/termlink/internal/auth"
-	"github.com/karatekah/termlink/internal/chat"
-	"github.com/karatekah/termlink/internal/e2ee"
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/internal/auth"
+	"github.com/karatekah/karatty/internal/chat"
+	"github.com/karatekah/karatty/internal/e2ee"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/pkg/protocol"
 )
 
 type API struct {
