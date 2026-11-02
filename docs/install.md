@@ -1,6 +1,8 @@
 # Instalar y usar Karatty alpha
 
-La descarga pública y `https://chat.karatty.dev` aún no están disponibles. Esta guía prepara el primer uso de la versión candidata. Para ensayarla ahora en tu máquina, sigue el [entorno local](quickstart.md).
+La primera alpha está orientada a uso local o en LAN con un servidor administrado por ti. No hay servicio del proyecto en Internet; dominio y VPS quedan para el futuro. Las descargas públicas siguen en borrador. Para iniciar el servidor y probar dos cuentas, sigue la [guía local y LAN](quickstart.md).
+
+Los comandos de esta página usan un servidor en el mismo equipo. Para LAN, sustituye **en todos los comandos** la URL por la IP privada del servidor y `RUTA_CA` por la ruta a `ca.crt`, recibido y comprobado con su administrador. Usa siempre la misma URL para conservar la identidad local. Los clientes no necesitan PostgreSQL.
 
 ## Descargar y verificar
 
@@ -26,7 +28,7 @@ Usa una clave SSH Ed25519 dedicada a Karatty. OpenSSH pide una frase para proteg
 
 ```sh
 ssh-keygen -t ed25519 -f RUTA_DE_TU_CLAVE
-karatty register --server https://chat.karatty.dev --key RUTA_DE_TU_CLAVE --username TU_SEUDONIMO --public
+karatty register --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key RUTA_DE_TU_CLAVE --username TU_SEUDONIMO --public
 ```
 
 En PowerShell, usa `./karatty.exe` si ejecutas desde la carpeta extraída. El seudónimo admite letras ASCII, números, guion y guion bajo, hasta 64 caracteres. No se pide correo ni nombre real para crear la cuenta. El servidor registra tu clave pública y metadatos de cuenta y conversación; un seudónimo no garantiza anonimato absoluto.
@@ -36,7 +38,7 @@ Guarda el código de recuperación que aparece una sola vez **fuera de este equi
 ## Abrir un directo
 
 ```sh
-karatty chat --server https://chat.karatty.dev --key RUTA_DE_TU_CLAVE
+karatty chat --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key RUTA_DE_TU_CLAVE
 ```
 
 Introduce la frase de la clave SSH si está protegida y la del archivo local. Dentro de la TUI:
@@ -53,12 +55,12 @@ El ACK confirma que el servidor guardó el sobre cifrado; no confirma que la otr
 
 ## Historial, recuperación y borrado
 
-Se conservan mensajes durante 720 horas (30 días). El servidor oculta los vencidos y los purga al arrancar y cada hora. El cliente limpia su archivo local al abrirlo o guardarlo y oculta entradas vencidas al leerlo; un equipo apagado no puede ejecutar esa limpieza. Los respaldos remotos tendrán una ventana adicional máxima de siete días cuando su operación esté comprobada. El secreto futuro no protege una copia local ya desbloqueada ni un equipo comprometido mientras se usa.
+Se conservan mensajes durante 720 horas (30 días). El servidor oculta los vencidos y los purga al arrancar y cada hora. El cliente limpia su archivo local al abrirlo o guardarlo y oculta entradas vencidas al leerlo; un equipo apagado no puede ejecutar esa limpieza. La guía local no configura respaldos automáticos. Si el administrador hace copias, debe informar y comprobar su retención. La ventana máxima de siete días adicionales es un requisito del futuro servicio alojado, todavía sin operar. El secreto futuro no protege una copia local ya desbloqueada ni un equipo comprometido mientras se usa.
 
 Si pierdes la clave SSH, genera otra y ejecuta:
 
 ```sh
-karatty recover --server https://chat.karatty.dev --key NUEVA_CLAVE --username TU_SEUDONIMO
+karatty recover --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key NUEVA_CLAVE --username TU_SEUDONIMO
 ```
 
 Introduce el código guardado y conserva el código nuevo. Luego abre el cliente con la clave nueva. Si el archivo anterior sigue en este equipo, cierra otros clientes y usa la misma frase secreta local para migrar el historial ya legible. El estado anterior se retira después de guardar el nuevo. Los envíos anteriores sin ACK se listan con `karatty uncertain` y no se reenvían solos. Si perdiste el archivo o su frase, recuperar la cuenta no restaura esos mensajes.
@@ -68,7 +70,7 @@ El contacto debe comparar tu nueva huella por otro medio y usar `/reverify USUAR
 Para borrar la cuenta:
 
 ```sh
-karatty delete-account --server https://chat.karatty.dev --key RUTA_DE_TU_CLAVE --confirm-delete
+karatty delete-account --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key RUTA_DE_TU_CLAVE --confirm-delete
 ```
 
 Se borran tu cuenta, claves, sesiones y mensajes propios de la base activa y los archivos locales de esa cuenta en el directorio configurado de este equipo. Cierra otros clientes para que la limpieza local pueda adquirir el bloqueo. Las copias de otras personas y otros equipos no se pueden retirar a distancia; los respaldos siguen su vencimiento. Si el servidor borró la cuenta pero falló la limpieza local, el CLI muestra la ruta que requiere revisión.

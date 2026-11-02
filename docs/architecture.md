@@ -1,6 +1,6 @@
 # Arquitectura de Karatty
 
-Estado: prototipo previo a la alpha pública. Este documento describe el código actual. El modo público de ensayo usa E2EE local para directos; el modo anterior por invitación y SSH remoto siguen sin E2EE.
+Estado: candidata alpha para uso local y en LAN; no hay servicio alojado por el proyecto. Este documento describe el código actual. El modo público de ensayo usa E2EE local para directos; el modo anterior por invitación y SSH remoto siguen sin E2EE.
 
 ## Vista general
 
@@ -44,7 +44,7 @@ Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consu
 
 El registro de ensayo abierto recibe un seudónimo y una clave pública Ed25519. El cliente firma un desafío de dos minutos y un solo uso con su clave privada. El servidor guarda la clave pública, emite una sesión temporal y entrega un código de recuperación de 192 bits una sola vez; solo conserva su hash. El inicio de sesión repite la prueba de posesión. La recuperación exige el código y una firma con la clave nueva, revoca claves y sesiones anteriores y rota el código. También existe un modo de invitaciones para las pruebas del prototipo.
 
-Cada operación comprueba la sesión, la clave, el usuario y, cuando corresponde, la membresía. Para abrir un directo, una persona solicita conversar y la destinataria debe aceptar con una solicitud recíproca. Los bloqueos impiden nuevos mensajes y solicitudes. `--public-signup` rechaza canales y TUI SSH remota y escucha en loopback por defecto. `--public-network` permite un listener público solo con TLS y ese modo cifrado. El [procedimiento de despliegue](deploy.md) prepara la instalación; todavía no se ha ejecutado en un VPS.
+Cada operación comprueba la sesión, la clave, el usuario y, cuando corresponde, la membresía. Para abrir un directo, una persona solicita conversar y la destinataria debe aceptar con una solicitud recíproca. Los bloqueos impiden nuevos mensajes y solicitudes. `--public-signup` rechaza canales y TUI SSH remota y escucha en loopback por defecto. `--public-network` permite escuchar fuera de loopback, en LAN o Internet, solo con TLS y ese modo cifrado. El [ensayo local/LAN](quickstart.md) genera certificados con SAN para la IP privada. El [procedimiento de despliegue](deploy.md) prepara la instalación; todavía no se ha ejecutado en un VPS.
 
 ## Mensajes y tiempo real
 
@@ -54,7 +54,7 @@ La base guarda el cuerpo en claro en el prototipo por invitación (`--legacy`). 
 
 ## Retención y operación
 
-El historial oculta mensajes con más de 720 horas. La purga por lotes borra cuerpos e identificadores vencidos; en el modo de ensayo abierto se ejecuta al arrancar y cada hora. La deduplicación queda garantizada solo durante esos 30 días. El plan de despliegue usa PostgreSQL en un VPS pequeño y `pg_dump` cifrado con `age` hacia un bucket privado. La restauración se ha ensayado localmente, pero la copia y el vencimiento remotos siguen pendientes de prueba operativa. Consulta [operación](operations.md) y [seguridad](security.md).
+El historial oculta mensajes con más de 720 horas. La purga por lotes borra cuerpos e identificadores vencidos; en el modo de ensayo abierto se ejecuta al arrancar y cada hora. La deduplicación queda garantizada solo durante esos 30 días. El futuro plan de alojamiento en Internet usa PostgreSQL en un VPS pequeño y `pg_dump` cifrado con `age` hacia un bucket privado. La restauración se ha ensayado localmente, pero la copia y el vencimiento remotos siguen pendientes de prueba operativa. Consulta [operación](operations.md) y [seguridad](security.md).
 
 ## Límites de la primera alpha
 

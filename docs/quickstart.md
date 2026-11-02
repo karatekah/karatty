@@ -1,127 +1,139 @@
-# Entorno local
+# Karatty en tu equipo o en una red local
 
-Requisitos: Go 1.27.3, Rust 1.99.1, PostgreSQL 17.11 (o Docker con Compose) y cliente OpenSSH. Los ejemplos levantan PostgreSQL con Docker; si ya tienes una instancia nativa, omite `docker compose ... up -d db` y ajusta `DATABASE_URL` a su host, puerto, usuario, contraseña y base. Compila sin CGo. Las dependencias exactas están en go.mod/go.sum y crypto/Cargo.lock. No se instala ni se publica un servidor remoto.
+La alpha usa un servidor dentro de tu equipo o LAN, PostgreSQL y clientes TUI locales. No requiere dominio, VPS, correo ni acceso desde Internet. Ambos participantes deben poder alcanzar el mismo servidor. Cada cuenta utiliza un dispositivo.
 
-## Windows / PowerShell
+Usa `--public-signup`: registro seudónimo sin correo, directos 1:1 y sobres E2EE. El nombre del flag no obliga a exponer el servidor en Internet. No uses `--legacy`, invitaciones, canales ni el gateway SSH para esta alpha.
 
-Desde la raíz del repositorio:
+## 1. Compilar o instalar
+
+Para compilar necesitas Go 1.27.3, Rust 1.99.1 y OpenSSH. Solo el servidor necesita PostgreSQL 17.11, nativo o en Docker. Los clientes pueden usar los dos ejecutables de un [paquete verificado](install.md), sin Go, Rust ni PostgreSQL. El paquete del cliente no incluye el servidor.
+
+PowerShell, desde la raíz del repositorio:
+
+```powershell
+New-Item -ItemType Directory -Force bin,.local | Out-Null
+go build -trimpath -o bin/server.exe ./cmd/server
+go build -trimpath -o bin/karatty.exe ./cmd/termlink
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+Copy-Item crypto/target/release/karatty-crypto.exe bin/karatty-crypto.exe
+```
+
+En Linux/macOS:
+
+```sh
+mkdir -p bin .local
+chmod 700 .local
+go build -trimpath -o bin/server ./cmd/server
+go build -trimpath -o bin/karatty ./cmd/termlink
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+cp crypto/target/release/karatty-crypto bin/karatty-crypto
+```
+
+Los ejemplos siguientes usan PowerShell. En Linux/macOS usa `export VARIABLE=valor` y ejecutables sin `.exe`; los flags y el flujo en la TUI son iguales.
+
+## 2. Iniciar PostgreSQL
+
+Si ya tienes PostgreSQL, crea una base dedicada y configura `DATABASE_URL`. No apuntes pruebas a producción. El servidor aplica migraciones al arrancar:
+
+```powershell
+$env:DATABASE_URL = 'postgres://USUARIO:CONTRASENA_CODIFICADA@127.0.0.1:5432/karatty?sslmode=disable'
+```
+
+Codifica para URL los caracteres reservados de la contraseña. `sslmode=disable` solo corresponde aquí a PostgreSQL en el mismo equipo. Mantén credenciales fuera de Git y de capturas públicas.
+
+Como alternativa de desarrollo, Docker Compose crea la base `termlink` y publica PostgreSQL solo en loopback:
 
 ```powershell
 $env:TERMLINK_DB_PASSWORD = 'termlink-local-development-only'
 docker compose -f deployments/compose.yml up -d db
 $env:DATABASE_URL = "postgres://termlink:$env:TERMLINK_DB_PASSWORD@127.0.0.1:5432/termlink?sslmode=disable"
-New-Item -ItemType Directory -Force bin,.local | Out-Null
-go build -o bin/server.exe ./cmd/server
-go build -o bin/ssh-gateway.exe ./cmd/ssh-gateway
-go build -o bin/karatty.exe ./cmd/termlink
-cargo build --locked --release --manifest-path crypto/Cargo.toml
-Copy-Item crypto/target/release/karatty-crypto.exe bin/karatty-crypto.exe
+```
+
+La contraseña es exclusivamente de ejemplo local. No inicies el perfil `app` de Compose: conserva el prototipo por invitaciones y SSH para sus pruebas.
+
+## 3. Elegir local o LAN e iniciar con TLS
+
+**Solo este equipo:**
+
+```powershell
 go run ./scripts/devcert.go
-./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
+./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --public-signup
 ```
 
-El servidor aplica las migraciones de esquema al arrancar. En otra PowerShell con el mismo DATABASE_URL:
+Ambos clientes usarán `https://127.0.0.1:8443` y `.local/tls/ca.crt`. Deja abierta la terminal del servidor.
+
+**Red local:** busca la IPv4 privada del servidor con `ipconfig` (Windows) o `ip addr` (Linux). Sustituye `192.168.1.50` en ambos comandos por esa IP:
 
 ```powershell
-$channel = ./bin/server.exe --channel general
-$inviteAlice = ./bin/server.exe --invite --conversation $channel --uses 1 --ttl 24h
-$inviteBob = ./bin/server.exe --invite --conversation $channel --uses 1 --ttl 24h
-$inviteEve = ./bin/server.exe --invite --uses 1 --ttl 24h
+go run ./scripts/devcert.go --out .local/tls-lan --ip 192.168.1.50
+./bin/server.exe --addr 192.168.1.50:8443 --tls-cert .local/tls-lan/server.crt --tls-key .local/tls-lan/server.key --public-signup --public-network
+```
+
+`--public-network` permite escuchar fuera de loopback, también en LAN; exige TLS y el modo E2EE, sin `--dev`. Ambos clientes deben usar `https://192.168.1.50:8443`, incluso el instalado en el servidor. Elige una URL estable desde el primer registro: el estado cifrado se vincula a esa URL; cambiarla puede crear otra identidad local. Una reserva DHCP ayuda a conservar la IP.
+
+Entrega **solo `ca.crt`** a cada participante por un medio de confianza y compara su SHA-256 fuera de Karatty (`Get-FileHash RUTA/ca.crt -Algorithm SHA256` o `sha256sum RUTA/ca.crt`). El cliente confía en ella con `--ca-cert`, sin instalarla globalmente. `server.key` se queda en el servidor; cada cliente conserva su propia clave SSH y estado. No compartas carpetas de estado entre equipos.
+
+El firewall debe permitir TCP 8443 desde los clientes de la subred privada. Si necesitas una regla, limítala a esa subred y al perfil privado; no desactives el firewall. Las redes de invitados pueden aislar dispositivos. No abras PostgreSQL ni reenvíes puertos en el router. Desde otro equipo Windows comprueba alcance con `Test-NetConnection 192.168.1.50 -Port 8443`.
+
+Los certificados caducan a los 30 días; la clave privada de la CA no se guarda. El generador rechaza sobrescribir certificados existentes. Para renovar o cambiar IP, usa otro `--out`, reinicia el servidor y redistribuye y comprueba la CA. Nunca desactives la validación TLS.
+
+## 4. Registrar dos personas
+
+En otra terminal, Alice crea su clave dedicada y se registra:
+
+```powershell
 ssh-keygen -t ed25519 -f .local/alice
-ssh-keygen -t ed25519 -f .local/bob
-ssh-keygen -t ed25519 -f .local/eve
-$inviteAlice | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
-$inviteBob | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob --username bob --invitation-stdin
-$inviteEve | ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/eve --username eve --invitation-stdin
-./bin/karatty.exe chat --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
-```
-
-Las frases de claves cifradas se piden de forma oculta en la terminal, incluso al pasar una invitación por entrada estándar. Los permisos de Windows deben permitir acceso a las claves solo a su propietario; no se cambian ACL globales. Las invitaciones se pasan mediante variables/entrada estándar para no introducirlas literalmente en el historial de comandos. No compartirlas en logs.
-
-En otra terminal, Bob entra por SSH:
-
-```powershell
-ssh-keygen -lf .local/ssh/ssh_host_ed25519.pub
-ssh -t -p 2222 -i .local/bob chat@127.0.0.1
-```
-
-Compara la huella mostrada por SSH con la del host local antes de aceptarla. Conserva la clave de host entre reinicios. No desactives su verificación. `Ctrl+C` sale; `Tab` cambia de conversación; `PgUp/PgDn` desplaza el historial conservado en pantalla; `Ctrl+R` reintenta un envío sin confirmar con el mismo ID; `Esc` lo devuelve a edición; `Ctrl+L` vuelve a cargar conversaciones y sincroniza desde secuencia cero.
-
-El cliente conserva como máximo 500 mensajes en pantalla; el historial disponible de los últimos 30 días se consulta por páginas:
-
-```powershell
-./bin/karatty.exe history --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --conversation $channel --after 0
-ssh -p 2222 -i .local/eve chat@127.0.0.1 history $channel 0
-```
-
-El primero devuelve hasta 100 mensajes y `next`; úsalo como `--after` para la siguiente página. Eve recibe rechazo porque su invitación no da membresía al canal. Eve tampoco puede enviar ni suscribirse a sus eventos. La suite automatizada verifica los tres casos.
-
-Solicitar un chat directo: `karatty direct --peer bob` con los mismos flags de conexión. Devuelve `pending:true` y ningún ID. Bob ve la solicitud con `karatty requests` y la acepta con `karatty direct --peer alice`; entonces ambos ven el chat al recargar. Bob puede rechazarla con `karatty decline --peer alice` o bloquear a Alice con `karatty block --peer alice`; `karatty unblock --peer alice` permite recibir una solicitud nueva. En la TUI se usan `/requests`, `/direct USUARIO`, `/decline USUARIO`, `/block USUARIO` y `/unblock USUARIO`. Las solicitudes vencen a los 7 días. La identidad de la sesión siempre procede de la clave, no del nombre `chat` de SSH.
-
-## Ensayo local del registro público
-
-Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-host-key`. Este modo permite registro con seudónimo y clave Ed25519, sin correo ni invitación; activa automáticamente la purga horaria de mensajes vencidos. El ensayo local escucha en loopback. El despliegue externo requiere `--public-network` y TLS según [deploy.md](deploy.md). Después de crear una clave Ed25519, ejecuta:
-
-```powershell
 ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --public
+./bin/karatty.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
-El cliente muestra un código de recuperación una sola vez: guárdalo fuera del equipo. Después pide y confirma una frase secreta local de al menos 12 caracteres. Esta frase no sale del equipo; protege el historial legible y el estado del cifrado. Si se pierde, el archivo local no se puede abrir. El código de recuperación permite reemplazar la clave SSH, pero no restaura el historial E2EE anterior. Si se pierde la clave SSH, genera una nueva y ejecuta `karatty recover --key NUEVA_CLAVE --username alice` con los mismos flags de conexión; se pedirá el código guardado fuera del equipo.
+Bob usa otra terminal y otra clave:
 
-Para probar dos usuarios, registra también a Bob en otro directorio de estado (`--state-dir RUTA_ABSOLUTA`) y con otra clave SSH. Alice solicita `karatty direct --peer bob`; Bob acepta con `karatty direct --peer alice`. Cada persona abre `karatty chat` con su propia clave y servidor. En la TUI, `/myfingerprint` muestra la huella propia para compartir por otro medio; `/fingerprint USUARIO` muestra la del contacto. Compara las dos fuera de Karatty y escribe `/verify USUARIO HUELLA` en ambos equipos. Solo entonces se habilitan los envíos y la lectura de ese directo. El archivo local se desbloquea con la frase secreta en cada arranque. Tras recuperar la cuenta con otra clave SSH, se crea un dispositivo E2EE nuevo: con la frase secreta anterior se migra el historial local que ya era legible y se elimina el archivo cifrado viejo. Los envíos anteriores sin ACK aparecen con `karatty uncertain` y no se repiten solos. El contacto debe comparar la huella nueva y ejecutar `/reverify USUARIO HUELLA`. Los mensajes antiguos que no se habían descifrado pueden aparecer como no disponibles. Si el contacto tenía envíos pendientes, `/discardpending USUARIO` los abandona explícitamente; comprueba si llegaron antes de repetirlos con un ID nuevo.
-
-## Linux y macOS
-
-Mismos comandos Go, Docker y SSH. Usa `export` y ejecutables sin `.exe`:
-
-```sh
-export TERMLINK_DB_PASSWORD=termlink-local-development-only
-export DATABASE_URL="postgres://termlink:$TERMLINK_DB_PASSWORD@127.0.0.1:5432/termlink?sslmode=disable"
-docker compose -f deployments/compose.yml up -d db
-mkdir -p bin .local
-chmod 700 .local
-go build -o bin/server ./cmd/server
-go build -o bin/karatty ./cmd/termlink
-cargo build --locked --release --manifest-path crypto/Cargo.toml
-cp crypto/target/release/karatty-crypto bin/karatty-crypto
-go run ./scripts/devcert.go
-bin/server --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --ssh-host-key .local/ssh/ssh_host_ed25519
-# En otra terminal con DATABASE_URL:
-channel=$(bin/server --channel general)
-invite=$(bin/server --invite --conversation "$channel" --uses 1)
-ssh-keygen -t ed25519 -f .local/alice
-printf '%s' "$invite" | bin/karatty register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --invitation-stdin
-bin/karatty chat --legacy --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
+```powershell
+ssh-keygen -t ed25519 -f .local/bob
+./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob --username bob --public
+./bin/karatty.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob
 ```
 
-Las claves Unix se crean con modo 0600 dentro de directorios 0700. Si se copian de otra máquina, revisa propietario y permisos. La CA de desarrollo solo se confía en este cliente mediante `--ca-cert`; no se añade al almacén global. Caduca a los 30 días. La CA privada no se guarda. Para renovarla, mueve la carpeta TLS antigua a una copia privada y vuelve a generar certificados.
+En LAN sustituye en **todos** los comandos `--server` y `--ca-cert` por la URL de LAN y la ruta a la CA recibida. Cada persona genera la clave en su equipo; no copia la de otra. Crea primero la carpeta para tu clave si no existe. Con un paquete extraído ejecuta `./karatty.exe` y conserva `karatty-crypto.exe` junto a él.
 
-## Aplicación completa en Docker
+Guarda fuera del equipo el código de recuperación mostrado una vez. Después elige y confirma una frase secreta local independiente de la frase de la clave SSH. El archivo se desbloquea cada vez que abres el chat. Las claves distintas separan el estado de Alice y Bob incluso en una misma máquina. `--state-dir RUTA_ABSOLUTA` permite elegir otro directorio; repítelo en cada comando si lo usas.
 
-Genera antes los certificados con `go run ./scripts/devcert.go`. En Linux/macOS exporta `TERMLINK_UID=$(id -u)` y `TERMLINK_GID=$(id -g)` para que el contenedor pueda leer los archivos privados de desarrollo. Windows usa los valores predeterminados de Compose. Después:
+## 5. Aceptar, verificar y conversar
 
-```sh
-docker compose -f deployments/compose.yml --profile app up -d --build
-docker compose -f deployments/compose.yml exec app /server --channel general
+Dentro de ambas TUI:
+
+```text
+Alice: /direct bob
+Bob:   /requests
+Bob:   /direct alice
+Ambos: Ctrl+L para recargar; Tab para seleccionar el directo.
+Ambos: /myfingerprint
+       Comparten y comparan huellas por otro medio de confianza.
+Alice: /fingerprint bob
+Alice: /verify bob HUELLA_DE_BOB
+Bob:   /fingerprint alice
+Bob:   /verify alice HUELLA_DE_ALICE
+Alice: Hola Bob
+Bob:   Hola Alice
 ```
 
-API TLS en 127.0.0.1:8443, SSH en 127.0.0.1:2222. El contenedor y los procesos nativos comparten el mismo esquema y reglas; elige uno para evitar colisiones de puertos. Las claves SSH del host persisten en `.local/ssh`; la base en un volumen. `docker compose -f deployments/compose.yml down` detiene el entorno conservando sus datos. No uses `down -v` si quieres conservar el historial. Para iniciar solo el gateway por separado: `go run ./cmd/ssh-gateway --host-key .local/ssh/ssh_host_ed25519`.
+Comprueba que el otro cliente recibe texto legible y el emisor recibe ACK. Cierra ambos con Ctrl+C, ábrelos con las mismas claves, URL y frases, y comprueba el historial. El ACK indica persistencia, no lectura. `/pending` y `/retry ID` permiten revisar y reintentar envíos sin confirmar con el mismo sobre.
 
-## Verificación y administración
+Para validar la LAN, repite el flujo en **dos equipos físicos**. Dos procesos del mismo equipo conectados a su IP privada no comprueban el firewall remoto ni el aislamiento Wi-Fi. Registra sistemas, terminales y resultado sin claves, códigos ni mensajes privados. Consulta las [pruebas y límites actuales](verification.md) y las [operaciones de recuperación y borrado](install.md).
+
+## Detener y conservar datos
+
+Ctrl+C detiene clientes y servidor. `docker compose -f deployments/compose.yml stop db` detiene PostgreSQL si usaste Docker. Conserva base, claves y archivos de estado para volver a usar las cuentas. No uses `down -v` si quieres conservar la base.
+
+El modo E2EE oculta mensajes vencidos a las 720 horas y los purga al arrancar y cada hora. La deduplicación dura 30 días. El cliente solo limpia su archivo al usarse; no borra equipos apagados ni copias externas. Esta guía no configura respaldos automáticos: el administrador debe informar y comprobar la retención de sus copias. Las [herramientas de respaldo](operations.md) se configuran aparte.
+
+## Comprobar el desarrollo
 
 ```powershell
 $env:TERMLINK_TEST_DATABASE_URL = $env:DATABASE_URL
+$env:KARATTY_CRYPTO_BIN = (Resolve-Path bin/karatty-crypto.exe).Path
 ./scripts/check.ps1
-# Linux/macOS: export TERMLINK_TEST_DATABASE_URL="$DATABASE_URL"
-# go mod verify; go vet ./...; go test -race -count=1 ./...; go build ./cmd/...
 ```
 
-Las pruebas crean y eliminan un esquema aleatorio dentro de la base indicada. Utiliza una base local de desarrollo con permiso CREATE SCHEMA. No apuntes a datos de producción. Sin variable, las pruebas unitarias se ejecutan y las de integración se omiten explícitamente; CI exige PostgreSQL.
-
-Operaciones administrativas locales (requieren DATABASE_URL): `server --revoke-key 'SHA256:…'` y `server --revoke-member USER_ID --conversation CONVERSATION_ID`. El ID de usuario aparece al registrar; la huella de su clave se consulta con `ssh-keygen -lf ARCHIVO.pub`. La revocación no elimina el historial: bloquea nuevas operaciones y termina las suscripciones al siguiente sondeo (250 ms más el tiempo de consulta). Los datos ya entregados no se pueden retirar de la pantalla remota.
-
-El titular puede eliminar su cuenta con `karatty delete-account --server URL --ca-cert CA --key CLAVE --confirm-delete`. La operación es irreversible: borra su usuario, claves, sesiones, membresías y mensajes propios, y retira los archivos locales de esa cuenta bajo el directorio de estado configurado en este equipo. Cierra otros clientes para permitir la limpieza local. Conserva los mensajes escritos por otros participantes; los chats directos afectados quedan en modo solo lectura para ellos. Los datos de respaldos seguirán su vencimiento independiente cuando se configure y compruebe antes de la alpha pública.
-
-Retención de mensajes: el historial oculta los mensajes después de 720 horas y conserva sus huecos de secuencia. `server --purge-expired-messages` elimina una vez todos los mensajes vencidos y muestra el número borrado. Para programar la purga al arrancar y cada hora, añade `--retention-30d` al comando de inicio de `server`; está desactivada por defecto en desarrollo. La purga borra también los identificadores de deduplicación, cuya garantía dura 30 días. Los respaldos necesitan una política de vencimiento separada antes de operar una alpha.
-
-Endpoints operativos: `GET /healthz` comprueba PostgreSQL; `GET /metrics` expone contadores sin contenidos y requiere una sesión Bearer válida además de una conexión loopback. Con el servidor nativo, ejecuta `karatty metrics` desde la misma máquina y con los mismos flags `--server`, `--ca-cert` y `--key` que `karatty history`. No confiar en cabeceras de proxy para identidad o dirección. En contenedor accedido por red puente `/metrics` puede devolver 403; publica métricas mediante un adaptador privado antes de operar en un VPS.
+Las integraciones crean esquemas aleatorios y los eliminan al terminar; el rol necesita permiso para crearlos. Sin las variables se omiten las pruebas correspondientes. En Linux/macOS exporta las mismas variables y usa los [controles de contribución](../CONTRIBUTING.md). El alojamiento en Internet queda para la [guía prevista de despliegue](deploy.md).

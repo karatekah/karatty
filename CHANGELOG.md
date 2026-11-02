@@ -9,4 +9,5 @@
 - Sobres opacos en PostgreSQL, historial por secuencia y deduplicación durante los 30 días de retención.
 - Borrado de cuenta y estado local, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
 - Paquetes nativos de cliente y puente criptográfico, hashes, commit de origen y licencias de terceros.
-- Despliegue TLS explícito sin TUI remota ni canales en el modo público. Dominio, VPS, buzones y operación pública todavía pendientes.
+- Alpha orientada a uso local/LAN con servidor propio, TLS y certificados con SAN de IP; guía de conversación entre dos cuentas. Dominio, VPS, buzones y servicio alojado quedan para el futuro.
+- Integración E2EE local aprobada en Windows; prueba entre dos equipos físicos y resolución del bloqueo de Defender del servidor Windows pendientes.

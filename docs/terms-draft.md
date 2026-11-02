@@ -1,6 +1,6 @@
 # Condiciones de uso de Karatty — borrador
 
-**No publicar ni presentar para aceptación todavía.** Faltan identidad y contacto del operador, fecha de vigencia, ubicaciones de proveedores y revisión jurídica del texto. El dominio elegido, `karatty.dev`, aún no está contratado. Este borrador acompaña la [política de privacidad](privacy-draft.md).
+**Borrador sin vigencia para un futuro servicio alojado; no presentarlo para aceptación.** La alpha local/LAN se distribuye como software bajo Apache-2.0 y no incluye alojamiento del proyecto. Este texto no sustituye los avisos del administrador de otra instancia. Faltan identidad y contacto del operador, fecha de vigencia, ubicaciones de proveedores y revisión jurídica del texto. El dominio elegido, `karatty.dev`, aún no está contratado. Este borrador acompaña la [política de privacidad](privacy-draft.md).
 
 ## Servicio y alcance
 

@@ -1,6 +1,6 @@
-# Instalar el servicio alpha
+# Futuro alojamiento del servicio en Internet
 
-Estado: procedimiento preparado; todavía no se ha ejecutado en un VPS ni existe un servicio público. Requiere comprar `karatty.dev`, acceso administrativo al VPS, un bucket privado y el contacto público del operador. No se deben anunciar registros hasta completar las pruebas de [publicación](release.md).
+Esta guía queda para una fase futura. La alpha local/LAN se instala con [quickstart.md](quickstart.md) y no necesita contratar estos recursos. Estado: procedimiento preparado; todavía no se ha ejecutado en un VPS ni existe un servicio público. Requiere comprar `karatty.dev`, acceso administrativo al VPS, un bucket privado y el contacto público del operador. No se deben anunciar registros en un servicio alojado por el proyecto hasta completar las pruebas de [operación](operations.md).
 
 ## Configuración prevista
 

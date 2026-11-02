@@ -1,6 +1,6 @@
 # Verificación de la candidata alpha
 
-Esta matriz describe pruebas reproducibles del código. No sustituye una auditoría independiente ni una prueba del VPS, el dominio o los proveedores que aún no se han contratado. Los resultados de cada commit están en [GitHub Actions](https://github.com/karatekah/termlink/actions/workflows/ci.yml).
+Esta matriz describe pruebas reproducibles del código para la alpha local/LAN. No sustituye una auditoría independiente ni una prueba entre equipos físicos. VPS, dominio y proveedores quedan para un futuro servicio alojado. Los resultados de cada commit están en [GitHub Actions](https://github.com/karatekah/termlink/actions/workflows/ci.yml).
 
 | Área | Evidencia automatizada |
 | --- | --- |
@@ -14,8 +14,19 @@ Esta matriz describe pruebas reproducibles del código. No sustituye una auditor
 | Límites de transporte | `TestMaximumEnvelopePageOverHTTPAndWebSocket`: página completa de 100 cuerpos con el tamaño máximo y doble escape JSON, sin truncamiento. |
 | TUI | `pkg/tui`: huella propia y del contacto completas, instrucción de comparación externa y recuperación de un envío guardado con el mismo ID. |
 | Cliente nativo | `TestE2EEClientNativeTUI` abre dos ejecutables reales sobre PTY, desbloquea sus archivos locales, compara huellas, verifica ambos contactos y entrega un mensaje que PostgreSQL conserva como sobre opaco. |
+| TLS local/LAN | `scripts/TestDevelopmentCertificateLAN`: cadena de confianza, localhost, IPv4/IPv6 de loopback e IP privada; rechaza una IP ajena al certificado y sobrescribir certificados. También rechaza IP inválida, indefinida o multicast. |
 | Distribución | CI construye, extrae y ejecuta la versión y el puente Go–Rust en Windows, Linux y macOS; comprueba hashes, textos de licencias y commit de origen. |
 | Servicio | CI prueba PostgreSQL, TLS, WSS, cliente ejecutable y gateway legado; ejecuta detector de carreras, `go vet`, `govulncheck`, auditoría de Cargo.lock con RustSec, Docker, sintaxis de shell y verificación de unidades systemd. |
+
+## Ensayo de Windows del 1 de noviembre de 2026
+
+`TestE2EEClientExchangeAndLocalPassphrase` pasó con PostgreSQL 17.11 nativo y `karatty-crypto.exe` extraído del paquete Windows del candidato `d39b5da`. La integración comprueba envío, respuesta, historial, recuperación y reintentos con dos clientes; usa TLS en loopback. No es una sesión manual de dos TUI en Windows. La prueba nativa sobre PTY de la tabla se ejecuta en Linux en CI.
+
+También pasaron `go vet ./...`, `go test -count=1 ./...` con base y puente configurados, `go build ./cmd/...`, las pruebas del generador de certificados y la comprobación de enlaces Markdown relativos. Compilar con éxito no implica que el antivirus permita ejecutar el archivo resultante.
+
+La compilación del servidor terminó, pero al ejecutarlo en la IP privada Windows Defender bloqueó `.local/lan-alpha/server.exe` con la detección `Behavior:Win32/DefenseEvasion.A!ml`. No se desactivaron protecciones ni se añadió una exclusión. La detección no se ha resuelto ni se ha demostrado que sea un falso positivo. Por ello, el ensayo del servidor nativo Windows por la IP de LAN quedó pendiente; no se afirma que ese despliegue haya pasado.
+
+No se dispone de una segunda máquina en esta tarea. La conversación entre **dos equipos físicos de la LAN** sigue sin comprobarse. La [guía](quickstart.md) describe cómo realizarla; las pruebas de certificados no demuestran la conectividad entre máquinas.
 
 ## Límites de esta evidencia
 

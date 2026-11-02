@@ -1,8 +1,8 @@
-# Operación propuesta para la alpha pública
+# Operación futura de un servicio alojado
 
-Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El usuario eligió `karatty.dev`, pero todavía no se ha comprado ni confirmado en el registrador. Falta un correo público para soporte y privacidad; el usuario indicó que aún no tiene esos buzones. Las cuentas no requieren correo.
+Dominio, VPS y proveedores quedan para el futuro por decisión del usuario. No son requisitos de la alpha local/LAN descrita en [quickstart.md](quickstart.md). Esta guía prepara el despliegue en Internet; no hay infraestructura contratada ni respaldos remotos activos. El usuario eligió `karatty.dev`, pero todavía no se ha comprado ni confirmado en el registrador. Falta un correo público para soporte y privacidad; el usuario indicó que aún no tiene esos buzones. Las cuentas no requieren correo.
 
-Nombre de trabajo: **Karatty**. El 1 de noviembre de 2026, el buscador oficial [Busca tu marca](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró **0 resultados en búsqueda precisa** de marcas vigentes para «Karatty» en las clases 9, 38 y 42. La búsqueda amplia devolvió 200 resultados. Esta consulta es preliminar; falta revisar posibles similitudes relevantes y confirmar dominio y marca antes de publicar.
+Nombre de trabajo: **Karatty**. El 1 de noviembre de 2026, el buscador oficial [Busca tu marca](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró **0 resultados en búsqueda precisa** de marcas vigentes para «Karatty» en las clases 9, 38 y 42. La búsqueda amplia devolvió 200 resultados. Esta consulta es preliminar; falta revisar posibles similitudes relevantes y confirmar dominio y marca antes de anunciar un servicio alojado con esa marca.
 
 ## Infraestructura y presupuesto
 
@@ -22,13 +22,13 @@ Antes de abrir el servicio, sube un respaldo y restaura uno en una base vacía c
 
 Ensayo local del 31 de octubre de 2026: `backup.sh` cifró y subió una copia al backend local de `rclone`; `restore-check.sh` la restauró en una base desechable y verificó 3 usuarios y 9 mensajes. Una copia marcada con cinco días de antigüedad se eliminó al ejecutar el respaldo siguiente. Este ensayo no verifica R2 ni su regla de ciclo de vida.
 
-## Puertas de publicación
+## Condiciones antes de abrir un servicio alojado
 
 1. Confirmar la disponibilidad y el precio de `karatty.dev` en el registrador, comprarlo, cerrar la revisión de marca y preparar correo público de soporte y privacidad.
 2. Implementar y revisar E2EE para los directos 1:1 en la TUI local. Impedir mensajes en claro, canales y TUI SSH remota en el servicio público. Verificar las claves de los contactos y ensayar pérdida/rotación de claves.
 3. Crear VPS y bucket privados, configurar DNS, TLS y acceso administrativo. Mantener credenciales fuera del repositorio.
 4. Completar y revisar el [borrador de privacidad](privacy-draft.md), publicar política y condiciones con identidad y contacto del titular, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
 5. Probar registro seudónimo, recuperación con código, aceptación de directos, bloqueo, borrado de cuenta, purga horaria, respaldo, restauración y borrado remoto en el entorno contratado.
-6. Seguir la [guía de publicación](release.md): revisar historial, licencia y documentación; publicar el código fuente y los binarios con hashes en la misma versión y hacer una prueba de instalación externa.
+6. Partir de una [versión publicada y verificada](release.md) y hacer una prueba de instalación externa contra el servicio alojado.
 
-No anuncies la alpha hasta que estas comprobaciones estén registradas con fecha y resultado.
+No anuncies el servicio alojado hasta registrar estas comprobaciones con fecha y resultado. La distribución del software local/LAN tiene su propia lista en [release.md](release.md).

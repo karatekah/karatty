@@ -1,6 +1,6 @@
 # Política de privacidad de Karatty — borrador para revisión
 
-**No publicar todavía.** El dominio elegido es `karatty.dev`, pero aún no está comprado. Faltan la identidad y el correo público del titular, las ubicaciones reales de los proveedores, la comprobación de la marca y la validación legal y operativa. Fecha de entrada en vigor: `[PENDIENTE]`.
+**Borrador sin vigencia para un futuro servicio alojado; no presentarlo como una política activa.** La alpha actual se ejecuta en una instancia local/LAN administrada por quien la instala. Este texto no describe un servicio central ya disponible. Cada administrador debe informar del tratamiento y las copias de su instancia. El dominio elegido es `karatty.dev`, pero aún no está comprado. Faltan la identidad y el correo público del titular, las ubicaciones reales de los proveedores, la comprobación de la marca y la validación legal y operativa. Fecha de entrada en vigor: `[PENDIENTE]`.
 
 ## Responsable y contacto
 
