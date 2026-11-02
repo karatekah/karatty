@@ -45,3 +45,15 @@ func TestLocalArchivePurgesExpiredMessagesAndPendingSends(t *testing.T) {
 		t.Fatal("expired plaintext or pending send survived local save")
 	}
 }
+
+func TestArchiveOrdersSendAckBeforeBacklogAndHidesExpired(t *testing.T) {
+	c := &Client{state: newDisk("user-id", "ssh-key")}
+	for _, seq := range []int64{3, 1, 2} {
+		appendArchive(&c.state, protocol.Message{ID: string(rune('a' + seq)), ConversationID: "direct", Seq: seq, CreatedAt: time.Now()})
+	}
+	appendArchive(&c.state, protocol.Message{ID: "expired", ConversationID: "direct", Seq: 4, CreatedAt: time.Now().Add(-721 * time.Hour)})
+	got := c.Archive("direct")
+	if len(got) != 3 || got[0].Seq != 1 || got[1].Seq != 2 || got[2].Seq != 3 {
+		t.Fatal("archive skipped or reordered backlog after a newer send acknowledgement")
+	}
+}
