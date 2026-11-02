@@ -60,6 +60,15 @@ jobs:
       - run: go mod download
       - run: go vet ./...
       - run: go test -race -count=1 ./...
+      - name: Validate deployment units and shell syntax
+        run: |
+          bash -n scripts/backup.sh scripts/restore-check.sh deployments/renew-certificate.sh
+          RENEWED_DOMAINS=example.org bash deployments/renew-certificate.sh
+          go build -o .local/server ./cmd/server
+          sudo install -d /opt/karatty
+          sudo install -m 0755 .local/server /opt/karatty/server
+          sudo install -m 0755 scripts/backup.sh /opt/karatty/backup.sh
+          systemd-analyze verify deployments/systemd/karatty.service deployments/systemd/karatty-backup.service deployments/systemd/karatty-backup.timer
       - run: test -z "$(gofmt -l .)"
   build:
     strategy:
