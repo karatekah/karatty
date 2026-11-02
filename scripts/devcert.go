@@ -1,4 +1,4 @@
-// Generate a private local development CA and a loopback server certificate.
+// Generate a private development CA and a loopback or LAN server certificate.
 // Run from the repository root: go run ./scripts/devcert.go
 package main
 
@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"flag"
 	"fmt"
 	"math/big"
 	"net"
@@ -18,15 +19,29 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
+	dir := flag.String("out", filepath.Join(".local", "tls"), "new certificate directory")
+	ip := flag.String("ip", "", "additional LAN IP address for the server certificate")
+	flag.Parse()
+	if err := run(*dir, *ip); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
-func run() error {
-	dir := filepath.Join(".local", "tls")
-	if _, err := os.Stat(filepath.Join(dir, "ca.crt")); err == nil {
-		return fmt.Errorf("local CA already exists; reuse it")
+func run(dir, address string) error {
+	ips := []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
+	if address != "" {
+		ip := net.ParseIP(address)
+		if ip == nil || ip.IsUnspecified() || ip.IsMulticast() {
+			return fmt.Errorf("ip must be a concrete server IP address")
+		}
+		ips = append(ips, ip)
+	}
+	for _, name := range []string{"ca.crt", "server.crt", "server.key"} {
+		if _, err := os.Lstat(filepath.Join(dir, name)); err == nil {
+			return fmt.Errorf("certificate files already exist; reuse them or choose another --out directory")
+		} else if !os.IsNotExist(err) {
+			return err
+		}
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
@@ -43,7 +58,7 @@ func run() error {
 		return err
 	}
 	now := time.Now()
-	ca := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "TERMLINK local development CA"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(30 * 24 * time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	ca := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "Karatty local development CA"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(30 * 24 * time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
 	caDER, err := x509.CreateCertificate(rand.Reader, ca, ca, &caKey.PublicKey, caKey)
 	if err != nil {
 		return err
@@ -56,7 +71,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	leaf := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "localhost"}, DNSNames: []string{"localhost"}, IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}, NotBefore: now.Add(-time.Minute), NotAfter: ca.NotAfter, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	leaf := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "localhost"}, DNSNames: []string{"localhost"}, IPAddresses: ips, NotBefore: now.Add(-time.Minute), NotAfter: ca.NotAfter, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
 	der, err := x509.CreateCertificate(rand.Reader, leaf, ca, &serverKey.PublicKey, caKey)
 	if err != nil {
 		return err
@@ -71,6 +86,6 @@ func run() error {
 		}
 	}
 	// The CA private key is deliberately never saved: it cannot issue other certs.
-	fmt.Println("Local certificates written to .local/tls (valid for 30 days).")
+	fmt.Printf("Local certificates written to %s (valid for 30 days).\n", dir)
 	return nil
 }

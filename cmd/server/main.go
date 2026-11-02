@@ -48,7 +48,7 @@ func run() error {
 	revokeMember := flag.String("revoke-member", "", "admin: user ID")
 	retention30d := flag.Bool("retention-30d", false, "purge messages older than 30 days at startup and hourly")
 	publicSignup := flag.Bool("public-signup", false, "allow pseudonymous SSH-key registration without email")
-	publicNetwork := flag.Bool("public-network", false, "allow the E2EE alpha API on a public TLS listener")
+	publicNetwork := flag.Bool("public-network", false, "allow the E2EE alpha API beyond loopback over TLS (LAN or Internet)")
 	purgeExpired := flag.Bool("purge-expired-messages", false, "admin: purge messages older than 30 days once")
 	flag.Parse()
 	if err := validatePublicMode(*addr, *cert, *key, *hostKey, *publicSignup, *publicNetwork, *dev); err != nil {
