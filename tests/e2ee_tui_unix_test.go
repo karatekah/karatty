@@ -57,7 +57,11 @@ func (p *tuiProcess) waitFor(t *testing.T, match func(string) bool) string {
 		}
 		select {
 		case <-deadline:
-			t.Fatal("native encrypted TUI did not reach the expected state")
+			tail := []rune(text)
+			if len(tail) > 1200 {
+				tail = tail[len(tail)-1200:]
+			}
+			t.Fatalf("native encrypted TUI did not reach the expected state; test terminal tail: %q", string(tail))
 		case <-tick.C:
 		}
 	}
