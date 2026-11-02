@@ -1,13 +1,19 @@
-# Cambios
+# Changelog
 
-## v0.1.0-alpha.1 — alpha experimental
+**English** · [Español](docs/es/project/CHANGELOG.md) · [Italiano](docs/it/project/CHANGELOG.md)
 
-- TUI local para directos 1:1 con aceptación, rechazo y bloqueo.
-- Registro seudónimo mediante clave SSH Ed25519, sin correo; recuperación con código fuera del equipo.
-- Cifrado Olm con vodozemac 0.11.1, huellas comparadas por otro medio y nueva verificación al cambiar la identidad.
-- Archivo local con Argon2id y XChaCha20-Poly1305; cola de salida persistida antes del envío y migración tras recuperar la cuenta.
-- Sobres opacos en PostgreSQL, historial por secuencia y deduplicación durante los 30 días de retención.
-- Borrado de cuenta y estado local, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
-- Paquetes nativos de cliente y puente criptográfico, hashes, commit de origen y licencias de terceros.
-- Alpha orientada a uso local/LAN con servidor propio, TLS y certificados con SAN de IP; guía de conversación entre dos cuentas. Dominio, VPS, buzones y servicio alojado quedan para el futuro.
-- Ensayo Windows con servidor nativo y dos TUI: registro, aceptación, huellas, mensajes E2EE y reapertura del historial aprobados tras restaurar el servidor de cuarentena con Defender activo. LAN entre dos equipos físicos y detección en otras instalaciones sin comprobar.
+## v0.1.0-alpha.1 — experimental alpha
+
+- Local TUI for 1:1 direct chats with acceptance, rejection and blocking.
+- Pseudonymous registration using an Ed25519 SSH key, without email; recovery through an offline code.
+- Olm encryption with vodozemac 0.11.1, fingerprints compared through another channel and re-verification after an identity change.
+- Argon2id/XChaCha20-Poly1305 local archive, outbox persisted before sending and archive migration after account recovery.
+- Opaque PostgreSQL envelopes, sequence-based history and deduplication during 30-day retention.
+- Account/local-state deletion, expired-message purging and encrypted backup/restore tools.
+- Native client/crypto-bridge packages, hashes, source commit and third-party license texts.
+- Local use with a self-hosted TLS server; certificates with IP SANs and a two-account guide. Domain, VPS, mailboxes and hosted service remain future work.
+- Native Windows server/two-TUI trial passed registration, acceptance, fingerprints, E2EE messages and history reopening after the server was restored from Defender quarantine, with protection active. Two-machine LAN and the detection on other installations remain unverified.
+
+## Documentation and repository migration
+
+The repository and current Go module are now `karatekah/karatty`. English is primary, with complete Spanish/Italian pages and per-page language links. Published v0.1.0-alpha.1 tags, binaries and checksums are unchanged; its source snapshot retains the previous internal module identifier. Compatibility command paths and environment-variable names remain as documented.

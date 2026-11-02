@@ -1,7 +1,9 @@
-# Puente criptográfico experimental
+# Local Olm bridge
 
-Este ejecutable de prueba usa vodozemac 0.11.1 para crear identidades Olm, reponer claves de un solo uso, cifrar y descifrar mensajes. Acepta un objeto JSON por stdin y devuelve uno por stdout. Las pruebas demuestran intercambio en ambas direcciones, rechazo de alteración y rechazo de repetición. `pkg/cryptobridge` prueba que Go puede invocarlo y verificar la firma de claves iniciales y repuestas.
+**English** · [Español](../docs/es/crypto/README.md) · [Italiano](../docs/it/crypto/README.md)
 
-**Aún no forma parte de `karatty` ni del protocolo de red.** Los campos `account` y `session` contienen claves privadas sin cifrar mientras viajan por los pipes locales. No deben guardarse, imprimirse en logs ni enviarse al servidor. Este ejecutable tampoco verifica la identidad del contacto: el cliente deberá comprobar firmas, fijar la huella y detenerse ante cambios de clave. El cliente final deberá cifrar su estado local y guardar el ratchet avanzado y el mensaje pendiente de forma atómica antes de enviar.
+The `karatty-crypto` executable is part of the local alpha client. It uses vodozemac 0.11.1 to create Olm identities, replenish one-time keys, and encrypt/decrypt messages. It accepts one JSON object on stdin and returns one on stdout. Rust tests cover bidirectional exchange, tampering, replay, out-of-order delivery and bounded forward secrecy. `pkg/cryptobridge` tests Go invocation and signatures for initial and replenished keys.
 
-Para probarlo desde `crypto/`: `cargo test --locked`. El [ADR 0003](../docs/adr/0003-e2ee-1to1.md) describe la integración y las pruebas que faltan antes de publicar una alpha E2EE.
+The `account` and `session` fields contain unencrypted private key material while crossing **local process pipes**. Never log them, persist them unencrypted or send them to the server. The bridge itself does not verify contact identity. `pkg/secureclient` verifies signed key bundles and fingerprints, stops on identity changes and atomically persists the advanced ratchet and pending envelope before transmission. `pkg/localstate` protects the archive with a local passphrase, Argon2id and XChaCha20-Poly1305.
+
+Run `cargo test --locked` from `crypto/`. Build with `cargo build --locked --release` and keep the resulting executable beside `karatty`. See [ADR 0003](../docs/adr/0003-e2ee-1to1.md) and [verification](../docs/verification.md) for integration evidence and limits. Karatty has no independent audit.
