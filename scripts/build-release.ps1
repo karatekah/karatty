@@ -2,11 +2,17 @@ param(
     [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$')]
     [string]$Version = 'v0.1.0-alpha.1',
     [string]$GoExe = 'go',
-    [string]$CargoExe = 'cargo'
+    [string]$CargoExe = 'cargo',
+    [string]$RustcExe = 'rustc'
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$goVersion = (& $GoExe version).Trim()
+$rustVersion = (& $RustcExe --version).Trim()
+if ($goVersion -notmatch '^go version go1\.27\.3 ' -or $rustVersion -notmatch '^rustc 1\.99\.1 ') {
+    throw 'Release builds require Go 1.27.3 and Rust 1.99.1'
+}
 $outputDir = Join-Path $repoRoot "dist/$Version"
 if (Test-Path -LiteralPath $outputDir) {
     throw "Release output already exists: $outputDir"
@@ -32,6 +38,10 @@ try {
         $cryptoSource = Join-Path $repoRoot "crypto/target/release/karatty-crypto$extension"
         if (!(Test-Path -LiteralPath $cryptoSource)) { throw 'Rust crypto executable missing' }
         Copy-Item -LiteralPath $cryptoSource -Destination (Join-Path $bundleDir "karatty-crypto$extension")
+        & (Join-Path $PSScriptRoot 'collect-licenses.ps1') -OutputDir $bundleDir -GoExe $GoExe -CargoExe $CargoExe -RustcExe $RustcExe
+        $commit = (& git rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot identify source commit' }
+        [System.IO.File]::WriteAllText((Join-Path $bundleDir 'BUILD_INFO'), "version=$Version`ncommit=$commit`nplatform=$targetOS-$targetArch`n", [System.Text.UTF8Encoding]::new($false))
     } finally {
         Pop-Location
     }
