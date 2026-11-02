@@ -19,11 +19,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/pkg/client"
-	"github.com/karatekah/termlink/pkg/cryptobridge"
-	"github.com/karatekah/termlink/pkg/localstate"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/pkg/client"
+	"github.com/karatekah/karatty/pkg/cryptobridge"
+	"github.com/karatekah/karatty/pkg/localstate"
+	"github.com/karatekah/karatty/pkg/protocol"
 	"golang.org/x/crypto/ssh"
 )
 

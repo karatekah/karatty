@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/karatekah/termlink/pkg/localstate"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/localstate"
+	"github.com/karatekah/karatty/pkg/protocol"
 )
 
 func TestLocalArchivePurgesExpiredMessagesAndPendingSends(t *testing.T) {

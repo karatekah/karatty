@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/pkg/protocol"
-	"github.com/karatekah/termlink/pkg/secureclient"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/secureclient"
 )
 
 type rejectMessagePost struct{ next http.RoundTripper }

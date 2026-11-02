@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/karatekah/termlink/pkg/client"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/client"
+	"github.com/karatekah/karatty/pkg/protocol"
 )
 
 // Backend adapts the encrypted client to the local TUI. It never forwards a

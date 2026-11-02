@@ -11,9 +11,9 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/pkg/client"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/pkg/client"
+	"github.com/karatekah/karatty/pkg/protocol"
 )
 
 type listed struct {

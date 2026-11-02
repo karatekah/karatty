@@ -18,7 +18,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/protocol"
 	"golang.org/x/crypto/ssh"
 )
 
