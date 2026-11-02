@@ -1,6 +1,6 @@
 # Arquitectura de Karatty
 
-Estado: candidata alpha para uso local y en LAN; no hay servicio alojado por el proyecto. Este documento describe el código actual. El modo público de ensayo usa E2EE local para directos; el modo anterior por invitación y SSH remoto siguen sin E2EE.
+Estado: alpha experimental para uso local; la configuración de LAN aún necesita una prueba entre equipos físicos. No hay servicio alojado por el proyecto. Este documento describe el código actual. El modo de registro abierto usa E2EE local para directos; el modo anterior por invitación y SSH remoto siguen sin E2EE.
 
 ## Vista general
 

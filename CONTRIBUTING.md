@@ -1,6 +1,6 @@
 # Contribuir a Karatty
 
-El repositorio sigue privado mientras se prepara la primera alpha. Esta guía describe cómo reproducir el entorno y revisar cambios; se verificará de nuevo antes de aceptar contribuciones públicas.
+Esta guía describe cómo reproducir el entorno de la alpha experimental y proponer cambios. Los errores de funcionamiento se pueden reportar en los [issues](https://github.com/karatekah/termlink/issues); las vulnerabilidades se reportan de forma privada según [SECURITY.md](SECURITY.md).
 
 ## Preparar el entorno
 
@@ -26,4 +26,4 @@ El E2EE, la identidad, la retención y el borrado afectan la seguridad y privaci
 
 ## Reportes de seguridad
 
-No publiques vulnerabilidades explotables ni material sensible en issues. Antes de abrir el repositorio se configurará una vía privada de reporte en `SECURITY.md`. Hasta que esa vía exista y se haya probado, no se abrirá el proyecto a contribuciones públicas.
+No publiques vulnerabilidades explotables ni material sensible en issues. Usa **Security → Report a vulnerability** en GitHub y sigue [SECURITY.md](SECURITY.md). Los informes públicos de errores deben usar datos de prueba y omitir claves, tokens y conversaciones privadas.

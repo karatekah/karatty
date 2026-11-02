@@ -1,6 +1,6 @@
 # Cambios
 
-## v0.1.0-alpha.1 — candidata sin publicar
+## v0.1.0-alpha.1 — alpha experimental
 
 - TUI local para directos 1:1 con aceptación, rechazo y bloqueo.
 - Registro seudónimo mediante clave SSH Ed25519, sin correo; recuperación con código fuera del equipo.

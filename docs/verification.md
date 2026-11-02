@@ -1,4 +1,4 @@
-# Verificación de la candidata alpha
+# Verificación de la alpha experimental
 
 Esta matriz describe pruebas reproducibles del código para la alpha local/LAN. No sustituye una auditoría independiente ni una prueba entre equipos físicos. VPS, dominio y proveedores quedan para un futuro servicio alojado. Los resultados de cada commit están en [GitHub Actions](https://github.com/karatekah/termlink/actions/workflows/ci.yml).
 

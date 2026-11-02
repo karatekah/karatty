@@ -2,9 +2,9 @@
 
 Mensajería desde tu terminal: directos 1:1 con aceptación, identidad seudónima mediante clave SSH y cifrado de extremo a extremo en una TUI local.
 
-**v0.1.0-alpha.1 está en preparación para uso local y en red local (LAN).** El repositorio sigue privado y las descargas están en borrador. No necesitas dominio, VPS ni correo: una máquina ejecuta el servidor y PostgreSQL, y cada participante instala el cliente. El alojamiento en Internet con `karatty.dev` queda para el futuro.
+**[v0.1.0-alpha.1](https://github.com/karatekah/termlink/releases/tag/v0.1.0-alpha.1) es una alpha experimental para uso local.** El código y los paquetes del cliente se distribuyen bajo Apache-2.0. No necesitas dominio, VPS ni correo: una máquina ejecuta el servidor y PostgreSQL, y cada participante instala el cliente. La configuración de LAN está documentada, pero la conversación entre dos equipos físicos aún no se ha comprobado. El alojamiento en Internet con `karatty.dev` queda para el futuro.
 
-## Qué incluye la candidata
+## Qué incluye la alpha
 
 - Registro sin correo ni nombre real, con prueba de posesión de una clave Ed25519. Recuperación con un código guardado fuera del equipo.
 - Chats directos que requieren aceptación; solicitudes, rechazo, bloqueo y conversaciones cerradas de solo lectura.
@@ -34,6 +34,8 @@ Después pueden escribir mensajes. Tab cambia de chat, Ctrl+L recarga y Ctrl+C s
 ## Seguridad y límites
 
 La alpha usa solo la TUI instalada localmente y directos 1:1. El prototipo anterior por invitaciones y la TUI remota por SSH siguen en el código para desarrollo, envían texto legible al servidor y se excluyen de la alpha.
+
+**Windows Defender:** clasificó una compilación del servidor como `Behavior:Win32/DefenseEvasion.A!ml`. En el equipo de prueba funcionó después de que su propietario restaurara el archivo de cuarentena, con Defender activo. No se ha confirmado un falso positivo ni validado esa detección en otros equipos. La descarga del cliente no incluye el servidor. Consulta la [evidencia y sus límites](docs/verification.md) antes de usar la alpha; no desactives la protección para instalarla.
 
 El secreto futuro protege mensajes cuyas claves ya se consumieron y borraron del ratchet. No protege un archivo local desbloqueado, una copia antigua del estado o un equipo comprometido. La verificación de huellas por otro medio es necesaria frente a sustituciones de identidad en el primer contacto. El servidor conoce los metadatos de entrega; un seudónimo no garantiza anonimato absoluto.
 
