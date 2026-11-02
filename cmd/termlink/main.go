@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -19,10 +21,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/karatekah/termlink/pkg/client"
 	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/termlink/pkg/secureclient"
 	"github.com/karatekah/termlink/pkg/tui"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 )
+
+var version = "dev"
 
 func main() {
 	if err := run(); err != nil {
@@ -40,6 +45,7 @@ func run() error {
 	keyPath := flags.String("key", "", "Ed25519 private key path")
 	username := flags.String("username", "", "username for registration")
 	invitationStdin := flags.Bool("invitation-stdin", false, "read invitation from standard input (registration)")
+	public := flags.Bool("public", false, "register a pseudonym without an invitation")
 	dev := flags.Bool("dev", false, "allow loopback HTTP")
 	caPath := flags.String("ca-cert", "", "additional trusted PEM CA certificate")
 	conv := flags.String("conversation", "", "conversation ID for history/send")
@@ -47,6 +53,11 @@ func run() error {
 	id := flags.String("id", "", "stable ID for a send retry")
 	messageStdin := flags.Bool("message-stdin", false, "send: read one message from standard input")
 	peer := flags.String("peer", "", "username for direct chat")
+	fingerprint := flags.String("fingerprint", "", "out-of-band peer fingerprint to verify")
+	legacy := flags.Bool("legacy", false, "use the old invitation-mode plaintext client")
+	cryptoBin := flags.String("crypto-bin", "", "local karatty-crypto binary path")
+	stateDir := flags.String("state-dir", "", "encrypted local state directory")
+	confirmDelete := flags.Bool("confirm-delete", false, "delete this account, keys, sessions and own messages")
 	var args []string
 	if len(os.Args) > 2 {
 		args = os.Args[2:]
@@ -55,9 +66,12 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "login", "list", "history", "send", "direct", "metrics":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending", "uncertain", "pending", "retry-pending":
+	case "version":
+		fmt.Println("Karatty " + version)
+		return nil
 	default:
-		return errors.New("commands: chat, register, login, list, history, send, direct, metrics")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, reverify, discard-pending, pending, retry-pending, uncertain, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -104,6 +118,30 @@ func run() error {
 		transport.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
 		c.Transport = &http.Client{Transport: transport, Timeout: 10 * time.Second}
 	}
+	if command == "recover" {
+		if *username == "" {
+			return errors.New("recovery requires --username and --key with a new SSH key")
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		challenge, e := c.StartRecovery(ctx, signer, *username)
+		if e != nil {
+			return e
+		}
+		recoveryCode, e := readSecret("Código de recuperación guardado fuera del equipo: ")
+		if e != nil {
+			return e
+		}
+		result, e := c.CompleteRecovery(ctx, signer, challenge, string(recoveryCode))
+		for i := range recoveryCode {
+			recoveryCode[i] = 0
+		}
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Clave SSH reemplazada. Guarda el nuevo código de recuperación fuera del equipo; se muestra una sola vez: %s\n", result.RecoveryCode)
+		return nil
+	}
 	invite := ""
 	name := ""
 	if command == "register" {
@@ -111,7 +149,12 @@ func run() error {
 		if name == "" {
 			return errors.New("registration requires --username")
 		}
-		if *invitationStdin {
+		if *public && *invitationStdin {
+			return errors.New("choose --public or --invitation-stdin")
+		}
+		if *public {
+			// The server decides whether public registration is enabled.
+		} else if *invitationStdin {
 			if _, err = fmt.Fscan(os.Stdin, &invite); err != nil {
 				return errors.New("cannot read invitation")
 			}
@@ -135,16 +178,84 @@ func run() error {
 		return err
 	}
 	defer func() {
+		if c.Token == "" {
+			return
+		}
 		end, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
 		_ = c.Logout(end)
 	}()
+	if session.PublicMode && *legacy && encryptedCommand(command) {
+		return errors.New("plaintext legacy commands are unavailable in public mode")
+	}
+	if !session.PublicMode && !*legacy && encryptedCommand(command) {
+		return errors.New("this server uses the invitation prototype; use --legacy for its local plaintext client")
+	}
+	var secure *secureclient.Backend
+	if (command == "register" && *public) || (!*legacy && encryptedCommand(command)) {
+		if command == "register" {
+			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
+		}
+		passphrase, e := readSecret("Frase secreta del archivo local cifrado (mínimo 12 caracteres): ")
+		if e != nil {
+			return errors.New("cannot read local passphrase; use an interactive terminal")
+		}
+		if command == "register" {
+			confirm, confirmErr := readSecret("Repite la frase secreta local: ")
+			if confirmErr != nil || !bytes.Equal(passphrase, confirm) {
+				clear(passphrase)
+				clear(confirm)
+				return errors.New("local passphrase confirmation does not match")
+			}
+			clear(confirm)
+		}
+		root := *stateDir
+		if root == "" {
+			config, configErr := os.UserConfigDir()
+			if configErr != nil {
+				clear(passphrase)
+				return configErr
+			}
+			root = filepath.Join(config, "karatty")
+		}
+		binary := *cryptoBin
+		if binary == "" {
+			exe, exeErr := os.Executable()
+			if exeErr != nil {
+				clear(passphrase)
+				return exeErr
+			}
+			binary = filepath.Join(filepath.Dir(exe), "karatty-crypto")
+			if runtime.GOOS == "windows" {
+				binary += ".exe"
+			}
+		}
+		device, openErr := secureclient.Open(ctx, c, signer, session.UserID, passphrase, root, binary)
+		clear(passphrase)
+		if openErr != nil {
+			return openErr
+		}
+		defer device.Close()
+		secure = &secureclient.Backend{HTTP: c, Secure: device}
+		if pending := device.UncertainCount(); pending > 0 {
+			fmt.Fprintf(os.Stderr, "%d envíos de un dispositivo anterior tienen entrega incierta. Usa 'karatty uncertain' para revisarlos.\n", pending)
+		}
+	}
 	switch command {
-	case "register", "login":
+	case "register":
+		if !*public {
+			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
+		}
+		return nil
+	case "login":
 		fmt.Printf("Identidad verificada: %s. La sesión temporal se cierra al salir.\n", session.UserID)
 		return nil
 	case "chat":
-		_, err = tea.NewProgram(tui.New(ctx, c), tea.WithContext(ctx)).Run()
+		var backend client.Backend = c
+		if secure != nil {
+			backend = secure
+		}
+		_, err = tea.NewProgram(tui.New(ctx, backend), tea.WithContext(ctx)).Run()
 		return err
 	case "list":
 		out, e := c.List(ctx)
@@ -153,7 +264,11 @@ func run() error {
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
 	case "history":
-		out, e := c.History(ctx, *conv, *after, 100)
+		var backend client.Backend = c
+		if secure != nil {
+			backend = secure
+		}
+		out, e := backend.History(ctx, *conv, *after, 100)
 		if e != nil {
 			return e
 		}
@@ -164,6 +279,92 @@ func run() error {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
+	case "requests":
+		out, e := c.DirectRequests(ctx)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(out)
+	case "fingerprint":
+		if *peer == "" || secure == nil {
+			return errors.New("fingerprint requires --peer and the local encrypted client")
+		}
+		value, e := secure.Fingerprint(ctx, *peer)
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Huella de %s: %s\nCompárala con esa persona por otro medio antes de verificar.\n", *peer, value)
+		return nil
+	case "my-fingerprint":
+		if secure == nil {
+			return errors.New("my-fingerprint requires the local encrypted client")
+		}
+		fmt.Println(secure.SelfFingerprint())
+		return nil
+	case "verify":
+		if *peer == "" || *fingerprint == "" || secure == nil {
+			return errors.New("verify requires --peer and --fingerprint")
+		}
+		if e := secure.Verify(ctx, *peer, *fingerprint); e != nil {
+			return e
+		}
+		fmt.Println("Identidad verificada para", *peer)
+		return nil
+	case "reverify":
+		if *peer == "" || *fingerprint == "" || secure == nil {
+			return errors.New("reverify requires --peer and --fingerprint")
+		}
+		if e := secure.Reverify(ctx, *peer, *fingerprint); e != nil {
+			return e
+		}
+		fmt.Println("Nueva identidad verificada; algunos mensajes antiguos pueden no estar disponibles")
+		return nil
+	case "discard-pending":
+		if *peer == "" || secure == nil {
+			return errors.New("discard-pending requires --peer")
+		}
+		count, e := secure.DiscardPending(ctx, *peer)
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Descartados %d envíos pendientes; comprueba si el servidor ya los recibió.\n", count)
+		return nil
+	case "uncertain":
+		if secure == nil {
+			return errors.New("uncertain requires the local encrypted client")
+		}
+		return json.NewEncoder(os.Stdout).Encode(secure.Secure.Uncertain())
+	case "pending":
+		if secure == nil {
+			return errors.New("pending requires the local encrypted client")
+		}
+		return json.NewEncoder(os.Stdout).Encode(secure.Secure.Pending())
+	case "retry-pending":
+		if secure == nil || *conv == "" || *id == "" {
+			return errors.New("retry-pending requires --conversation and --id")
+		}
+		for _, item := range secure.Secure.Pending() {
+			if item.ConversationID == *conv && item.ClientID == *id {
+				out, e := secure.Send(ctx, *conv, protocol.Send{ClientID: item.ClientID, Body: item.Body})
+				if e != nil {
+					return e
+				}
+				return json.NewEncoder(os.Stdout).Encode(out)
+			}
+		}
+		return errors.New("pending message not found")
+	case "decline", "block", "unblock":
+		if *peer == "" {
+			return errors.New("provide --peer with the other username")
+		}
+		switch command {
+		case "decline":
+			return c.DeclineDirect(ctx, *peer)
+		case "block":
+			return c.BlockDirect(ctx, *peer)
+		default:
+			return c.UnblockDirect(ctx, *peer)
+		}
 	case "metrics":
 		out, e := c.Metrics(ctx)
 		if e != nil {
@@ -171,6 +372,26 @@ func run() error {
 		}
 		_, e = fmt.Print(out)
 		return e
+	case "delete-account":
+		if !*confirmDelete {
+			return errors.New("delete-account requires --confirm-delete")
+		}
+		if err = c.DeleteAccount(ctx); err != nil {
+			return err
+		}
+		root := *stateDir
+		if root == "" {
+			config, configErr := os.UserConfigDir()
+			if configErr != nil {
+				return errors.New("account deleted; cannot locate local state for cleanup")
+			}
+			root = filepath.Join(config, "karatty")
+		}
+		if err = secureclient.RemoveLocal(root, c.Base, session.UserID); err != nil {
+			return fmt.Errorf("account deleted; local state cleanup failed in %s: %w", root, err)
+		}
+		fmt.Println("Cuenta y estado local eliminados en este equipo.")
+		return nil
 	case "send":
 		if *id == "" {
 			return errors.New("send requires --id (reuse it when retrying)")
@@ -187,13 +408,31 @@ func run() error {
 			return e
 		}
 		body := string(b)
-		out, e := c.Send(ctx, *conv, protocol.Send{ClientID: *id, Body: body})
+		var backend client.Backend = c
+		if secure != nil {
+			backend = secure
+		}
+		out, e := backend.Send(ctx, *conv, protocol.Send{ClientID: *id, Body: body})
 		if e != nil {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 	return nil
+}
+
+func encryptedCommand(command string) bool {
+	switch command {
+	case "chat", "history", "send", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending", "uncertain", "pending", "retry-pending":
+		return true
+	}
+	return false
+}
+
+func clear(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
 }
 
 // readSecret uses the controlling terminal when stdin carries an invitation or

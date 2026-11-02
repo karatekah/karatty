@@ -27,11 +27,19 @@ type Event struct {
 	Err   error
 	Fatal bool
 }
+
+// A page can contain 100 envelopes of 12 KiB, escaped again as JSON strings.
+const maxPageBytes = 4 << 20
+
 type Backend interface {
 	List(context.Context) ([]protocol.Conversation, error)
 	History(context.Context, string, int64, int) (protocol.Page, error)
 	Send(context.Context, string, protocol.Send) (protocol.Message, error)
 	Direct(context.Context, string) (protocol.Conversation, error)
+	DirectRequests(context.Context) ([]protocol.DirectRequest, error)
+	DeclineDirect(context.Context, string) error
+	BlockDirect(context.Context, string) error
+	UnblockDirect(context.Context, string) error
 	Stream(context.Context, string, int64) <-chan Event
 }
 type HTTP struct {
@@ -102,7 +110,7 @@ func (c *HTTP) request(ctx context.Context, method, path string, in, out any) er
 	if out == nil {
 		return nil
 	}
-	return json.NewDecoder(io.LimitReader(resp.Body, 1048576)).Decode(out)
+	return json.NewDecoder(io.LimitReader(resp.Body, maxPageBytes)).Decode(out)
 }
 func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitation string) (protocol.Session, error) {
 	var challenge protocol.Challenge
@@ -110,7 +118,11 @@ func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitatio
 	if err != nil {
 		return protocol.Session{}, err
 	}
-	if !strings.HasPrefix(challenge.Payload, "TERMLINK-AUTH-v1\n") || len(challenge.Payload) > 256 {
+	prefix := "TERMLINK-AUTH-v1\n"
+	if username != "" && invitation == "" {
+		prefix = "KARATTY-PUBLIC-REGISTER-v1\n"
+	}
+	if !strings.HasPrefix(challenge.Payload, prefix) || len(challenge.Payload) > 256 {
 		return protocol.Session{}, errors.New("invalid server challenge")
 	}
 	sig, err := signer.Sign(rand.Reader, []byte(challenge.Payload))
@@ -124,8 +136,32 @@ func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitatio
 	}
 	return session, err
 }
+func (c *HTTP) StartRecovery(ctx context.Context, signer ssh.Signer, username string) (protocol.Challenge, error) {
+	var challenge protocol.Challenge
+	err := c.request(ctx, "POST", "/v1/recovery/start", protocol.RecoveryStart{Username: username, PublicKey: string(ssh.MarshalAuthorizedKey(signer.PublicKey()))}, &challenge)
+	if err == nil && (!strings.HasPrefix(challenge.Payload, "KARATTY-RECOVERY-v2\n") || len(challenge.Payload) > 256) {
+		return protocol.Challenge{}, errors.New("invalid server challenge")
+	}
+	return challenge, err
+}
+func (c *HTTP) CompleteRecovery(ctx context.Context, signer ssh.Signer, challenge protocol.Challenge, recoveryCode string) (protocol.RecoveryResult, error) {
+	sig, err := signer.Sign(rand.Reader, []byte(challenge.Payload))
+	if err != nil {
+		return protocol.RecoveryResult{}, err
+	}
+	var result protocol.RecoveryResult
+	err = c.request(ctx, "POST", "/v1/recovery/complete", protocol.RecoveryProof{Proof: protocol.Proof{ID: challenge.ID, Signature: ssh.Marshal(sig)}, RecoveryCode: recoveryCode}, &result)
+	return result, err
+}
 func (c *HTTP) Logout(ctx context.Context) error {
 	return c.request(ctx, "DELETE", "/v1/session", nil, nil)
+}
+func (c *HTTP) DeleteAccount(ctx context.Context) error {
+	if err := c.request(ctx, "DELETE", "/v1/account", nil, nil); err != nil {
+		return err
+	}
+	c.Token = ""
+	return nil
 }
 func (c *HTTP) Metrics(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.Base+"/metrics", nil)
@@ -182,6 +218,33 @@ func (c *HTTP) Direct(ctx context.Context, username string) (protocol.Conversati
 	err := c.request(ctx, "POST", "/v1/direct", map[string]string{"username": username}, &out)
 	return out, err
 }
+func (c *HTTP) DirectRequests(ctx context.Context) ([]protocol.DirectRequest, error) {
+	var out []protocol.DirectRequest
+	err := c.request(ctx, "GET", "/v1/direct/requests", nil, &out)
+	return out, err
+}
+func (c *HTTP) UploadDevice(ctx context.Context, in protocol.DeviceUpload) error {
+	return c.request(ctx, "POST", "/v1/e2ee/device", in, nil)
+}
+func (c *HTTP) Peer(ctx context.Context, username string) (protocol.DeviceBundle, error) {
+	var out protocol.DeviceBundle
+	err := c.request(ctx, "GET", "/v1/e2ee/peer/"+url.PathEscape(username), nil, &out)
+	return out, err
+}
+func (c *HTTP) ClaimPeer(ctx context.Context, username string) (protocol.DeviceBundle, error) {
+	var out protocol.DeviceBundle
+	err := c.request(ctx, "POST", "/v1/e2ee/peer/"+url.PathEscape(username)+"/claim", nil, &out)
+	return out, err
+}
+func (c *HTTP) DeclineDirect(ctx context.Context, username string) error {
+	return c.request(ctx, "DELETE", "/v1/direct/requests/"+url.PathEscape(username), nil, nil)
+}
+func (c *HTTP) BlockDirect(ctx context.Context, username string) error {
+	return c.request(ctx, "PUT", "/v1/direct/blocks/"+url.PathEscape(username), nil, nil)
+}
+func (c *HTTP) UnblockDirect(ctx context.Context, username string) error {
+	return c.request(ctx, "DELETE", "/v1/direct/blocks/"+url.PathEscape(username), nil, nil)
+}
 func pause(ctx context.Context, d time.Duration) bool {
 	t := time.NewTimer(d)
 	defer t.Stop()
@@ -223,7 +286,7 @@ func (c *HTTP) Stream(ctx context.Context, conv string, after int64) <-chan Even
 					return
 				}
 			} else {
-				conn.SetReadLimit(1048576)
+				conn.SetReadLimit(maxPageBytes)
 				delay = 250 * time.Millisecond
 				for ctx.Err() == nil {
 					var page protocol.Page

@@ -1,5 +1,7 @@
 /bin/
+/dist/
 /.local/
+/crypto/target/
 /.env
 *.exe
 *.test

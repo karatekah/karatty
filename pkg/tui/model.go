@@ -30,6 +30,31 @@ type sent struct {
 	message    protocol.Message
 	err        error
 }
+type directResult struct {
+	action   string
+	chat     protocol.Conversation
+	requests []protocol.DirectRequest
+	err      error
+}
+type identityResult struct {
+	peer        string
+	fingerprint string
+	verified    bool
+	reverified  bool
+	discarded   bool
+	count       int
+	err         error
+}
+type identityBackend interface {
+	Fingerprint(context.Context, string) (string, error)
+	Verify(context.Context, string, string) error
+	SelfFingerprint() string
+	Reverify(context.Context, string, string) error
+	DiscardPending(context.Context, string) (int, error)
+}
+type pendingBackend interface {
+	Pending(string) []protocol.Send
+}
 type Model struct {
 	ctx           context.Context
 	backend       client.Backend
@@ -47,11 +72,14 @@ type Model struct {
 	pending       *protocol.Send
 	busy          bool
 	fatal         bool
+	requests      []protocol.DirectRequest
+	requestView   bool
+	identityView  string
 }
 
 func New(ctx context.Context, b client.Backend) *Model {
 	in := textinput.New()
-	in.Placeholder = "Escribe un mensaje"
+	in.Placeholder = "Mensaje o /comando"
 	in.CharLimit = 4096
 	in.Focus()
 	return &Model{ctx: ctx, backend: b, input: in, view: viewport.New(), width: 80, height: 24, status: "Conectando…"}
@@ -78,16 +106,145 @@ func (m *Model) selectRoom() tea.Cmd {
 	m.pending = nil
 	m.busy = false
 	m.fatal = false
+	m.requestView = false
+	m.identityView = ""
 	m.view.SetContent("")
 	if len(m.rooms) == 0 {
-		m.status = "Sin conversaciones. Solicita una invitación a un canal."
+		m.status = "Sin conversaciones. Usa /direct USUARIO para solicitar un chat."
 		return nil
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
 	m.cancel = cancel
 	m.stream = m.backend.Stream(ctx, m.rooms[m.selected].ID, 0)
 	m.status = "Sincronizando historial…"
+	if m.rooms[m.selected].Closed {
+		m.status = "Conversación cerrada · solo lectura"
+	}
 	return wait(m.stream, m.generation)
+}
+func (m *Model) directCommand() tea.Cmd {
+	args := strings.Fields(m.input.Value())
+	if len(args) == 0 {
+		return nil
+	}
+	action := args[0]
+	if action == "/pending" || action == "/retry" {
+		pending, ok := m.backend.(pendingBackend)
+		if !ok || len(m.rooms) == 0 {
+			m.status = "Abre un directo en la TUI local cifrada para revisar envíos pendientes."
+			return nil
+		}
+		items := pending.Pending(m.rooms[m.selected].ID)
+		if action == "/pending" && len(args) == 1 {
+			lines := []string{"Envíos guardados sin confirmar:"}
+			for _, item := range items {
+				lines = append(lines, security.Display(item.ClientID)+"  "+security.Display(item.Body))
+			}
+			if len(items) == 0 {
+				lines = append(lines, "No hay envíos pendientes en este directo.")
+			}
+			lines = append(lines, "", "Usa /retry ID para reenviar el mismo sobre.")
+			m.identityView = strings.Join(lines, "\n")
+			m.input.Reset()
+			m.renderMessages()
+			m.status = "La entrega puede haberse completado aunque se perdiera el ACK."
+			return nil
+		}
+		if action == "/retry" && len(args) == 2 && !m.rooms[m.selected].Closed {
+			for _, item := range items {
+				if item.ClientID == args[1] {
+					m.pending = &item
+					m.input.SetValue(item.Body)
+					m.identityView = ""
+					m.requestView = false
+					return m.send()
+				}
+			}
+		}
+		m.status = "Usa /pending y /retry ID en un directo abierto."
+		return nil
+	}
+	if action == "/myfingerprint" && len(args) == 1 {
+		secure, ok := m.backend.(identityBackend)
+		if !ok {
+			m.status = "La huella requiere la TUI local cifrada."
+			return nil
+		}
+		m.input.Reset()
+		m.identityView = "Tu huella:\n" + secure.SelfFingerprint() + "\n\nCompártela con tu contacto por otro medio."
+		m.renderMessages()
+		m.status = "Tu huella local está lista para comparar."
+		return nil
+	}
+	if action == "/fingerprint" || action == "/verify" || action == "/reverify" || action == "/discardpending" {
+		secure, ok := m.backend.(identityBackend)
+		if !ok {
+			m.status = "La verificación de identidad requiere la TUI local cifrada."
+			return nil
+		}
+		if ((action == "/fingerprint" || action == "/discardpending") && len(args) != 2) || ((action == "/verify" || action == "/reverify") && len(args) != 3) || !security.Identifier(args[1]) {
+			m.status = "Usa /fingerprint, /verify, /reverify o /discardpending USUARIO"
+			return nil
+		}
+		m.busy = true
+		m.input.Reset()
+		m.status = "Consultando identidad…"
+		return func() tea.Msg {
+			ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+			defer cancel()
+			result := identityResult{peer: args[1], verified: action == "/verify", reverified: action == "/reverify", discarded: action == "/discardpending"}
+			if result.verified {
+				result.err = secure.Verify(ctx, args[1], args[2])
+			} else if result.reverified {
+				result.err = secure.Reverify(ctx, args[1], args[2])
+			} else if result.discarded {
+				result.count, result.err = secure.DiscardPending(ctx, args[1])
+			} else {
+				result.fingerprint, result.err = secure.Fingerprint(ctx, args[1])
+			}
+			return result
+		}
+	}
+	if action == "/requests" && len(args) == 1 {
+		m.busy = true
+		m.input.Reset()
+		m.status = "Cargando solicitudes…"
+		return func() tea.Msg {
+			ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+			defer cancel()
+			requests, err := m.backend.DirectRequests(ctx)
+			return directResult{action: action, requests: requests, err: err}
+		}
+	}
+	if len(args) != 2 || !security.Identifier(args[1]) {
+		m.status = "Usa /requests o /direct, /decline, /block, /unblock USUARIO"
+		return nil
+	}
+	peer := args[1]
+	if action != "/direct" && action != "/decline" && action != "/block" && action != "/unblock" {
+		m.status = "Comando desconocido. Usa /requests o /direct, /decline, /block, /unblock USUARIO"
+		return nil
+	}
+	m.busy = true
+	m.input.Reset()
+	m.status = "Procesando…"
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+		defer cancel()
+		var result directResult
+		result.action = action
+		switch action {
+		case "/direct":
+			result.chat, result.err = m.backend.Direct(ctx, peer)
+		case "/decline":
+			result.err = m.backend.DeclineDirect(ctx, peer)
+		case "/block":
+			result.err = m.backend.BlockDirect(ctx, peer)
+		case "/unblock":
+			result.err = m.backend.UnblockDirect(ctx, peer)
+		}
+		return result
+	}
 }
 func (m *Model) send() tea.Cmd {
 	if m.pending == nil {
@@ -149,6 +306,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.renderMessages()
 			m.status = fmt.Sprintf("Conectado · SYNC %d", m.seq)
+			if m.rooms[m.selected].Closed {
+				m.status = "Conversación cerrada · solo lectura"
+			}
 		}
 		return m, wait(m.stream, m.generation)
 	case sent:
@@ -157,12 +317,54 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.busy = false
 		if v.err != nil {
-			m.status = "Sin confirmar. Ctrl+R reintenta el mismo mensaje; Esc cancela."
+			m.status = security.Display(v.err.Error()) + " · Ctrl+R reintenta; Esc permite editar."
 			return m, nil
 		}
 		m.pending = nil
 		m.input.Reset()
 		m.status = fmt.Sprintf("Guardado · ACK %d", v.message.Seq)
+		return m, nil
+	case directResult:
+		m.busy = false
+		if v.err != nil {
+			m.status = security.Display(v.err.Error())
+			return m, nil
+		}
+		if v.action == "/requests" {
+			m.requests = v.requests
+			m.requestView = true
+			m.renderMessages()
+			m.status = "Solicitudes · /direct USUARIO acepta · /decline USUARIO rechaza"
+			return m, nil
+		}
+		if v.action == "/direct" && v.chat.Pending {
+			m.status = "Solicitud enviada; espera la aceptación del destinatario"
+			return m, nil
+		}
+		return m, m.list()
+	case identityResult:
+		m.busy = false
+		if v.err != nil {
+			m.status = security.Display(v.err.Error())
+			return m, nil
+		}
+		if v.verified {
+			m.identityView = ""
+			m.status = "Identidad verificada para " + v.peer
+			return m, m.list()
+		}
+		if v.reverified {
+			m.identityView = ""
+			m.status = "Nueva identidad verificada; mensajes antiguos sin descifrar pueden no estar disponibles."
+			return m, m.list()
+		}
+		if v.discarded {
+			m.status = fmt.Sprintf("Descartados %d envíos pendientes; revisa si el servidor ya los recibió.", v.count)
+			return m, nil
+		}
+		m.identityView = "Huella de " + v.peer + ":\n" + v.fingerprint + "\n\nCompárala con esa persona por otro medio. Luego escribe /verify " + v.peer + " HUELLA"
+		m.renderMessages()
+		m.status = "Compara la huella fuera de Karatty antes de verificar."
 		return m, nil
 	case tea.KeyPressMsg:
 		switch v.String() {
@@ -192,7 +394,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			if !m.busy {
 				m.pending = nil
-				m.status = "Edición del mensaje"
+				m.status = "Edición. /pending muestra los envíos guardados sin confirmar."
 			}
 			return m, nil
 		case "ctrl+r":
@@ -201,6 +403,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
+			if strings.HasPrefix(m.input.Value(), "/") && !m.busy && m.pending == nil {
+				return m, m.directCommand()
+			}
+			if len(m.rooms) > 0 && m.rooms[m.selected].Closed {
+				m.status = "Conversación cerrada · solo lectura"
+				return m, nil
+			}
 			if m.input.Value() != "" && !security.Body(m.input.Value()) {
 				m.status = "Máximo 4096 bytes; sin saltos ni caracteres de control."
 				return m, nil
@@ -220,6 +429,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 func (m *Model) renderMessages() {
 	bottom := m.view.AtBottom()
+	if m.identityView != "" {
+		m.view.SetContent(m.identityView)
+		return
+	}
+	if m.requestView {
+		lines := []string{"Solicitudes de chat directo:"}
+		if len(m.requests) == 0 {
+			lines = append(lines, "No tienes solicitudes pendientes.")
+		}
+		for _, request := range m.requests {
+			lines = append(lines, "• "+security.Display(request.Username))
+		}
+		lines = append(lines, "", "/direct USUARIO acepta · /decline USUARIO rechaza · /block USUARIO bloquea")
+		m.view.SetContent(strings.Join(lines, "\n"))
+		return
+	}
 	lines := make([]string, 0, len(m.messages))
 	for _, msg := range m.messages {
 		line := fmt.Sprintf("%6d  %s  %s", msg.Seq, security.Display(msg.Username), security.Display(msg.Body))
@@ -239,10 +464,10 @@ func (m *Model) View() tea.View {
 		}
 		tabs = append(tabs, name)
 	}
-	title := "TERMLINK · alpha local · nombre provisional"
+	title := "Karatty · alpha"
 	status := ansi.Truncate(m.status, m.width, "…")
 	header := ansi.Truncate(strings.Join(tabs, "  "), m.width, "…")
-	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("Tab canal · PgUp/PgDn historial · Ctrl+L reconectar · Ctrl+C salir", m.width, "…")
+	content := ansi.Truncate(title, m.width, "…") + "\n" + header + "\n" + strings.Repeat("─", m.width) + "\n" + m.view.View() + "\n" + strings.Repeat("─", m.width) + "\n" + m.input.View() + "\n" + status + "\n" + ansi.Truncate("/myfingerprint · /fingerprint USUARIO · /verify USUARIO HUELLA · /direct USUARIO · Ctrl+L", m.width, "…")
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v

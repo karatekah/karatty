@@ -10,6 +10,13 @@ func TestDirectCannotRestoreRevokedMembership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !dm.Pending || dm.ID != "" {
+		t.Fatal("direct request opened a chat without acceptance")
+	}
+	dm, err = bob.Direct(f.ctx, "alice")
+	if err != nil || dm.Pending || dm.ID == "" {
+		t.Fatal("recipient could not accept direct request", err)
+	}
 	if err = f.c.RevokeMember(f.ctx, dm.ID, session.UserID); err != nil {
 		t.Fatal(err)
 	}
