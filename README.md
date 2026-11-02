@@ -10,7 +10,7 @@
 
 A local TUI for accepted 1:1 chats, SSH-key identities and end-to-end encryption.
 
-[![v0.1.0-alpha.1](https://img.shields.io/badge/release-v0.1.0--alpha.1-7c8cf8?style=flat-square)](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) [![CI](https://github.com/karatekah/karatty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/karatekah/karatty/actions/workflows/ci.yml) [![Apache-2.0 license](https://img.shields.io/badge/license-Apache--2.0-7ae2b5?style=flat-square)](LICENSE) [![Client packages: Windows, Linux and macOS](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-64748b?style=flat-square)](docs/install.md)
+[![v0.1.0-alpha.1](https://img.shields.io/badge/release-v0.1.0--alpha.1-4f46e5?style=flat-square)](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) [![CI](https://github.com/karatekah/karatty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/karatekah/karatty/actions/workflows/ci.yml) [![Apache-2.0 license](https://img.shields.io/badge/license-Apache--2.0-7ae2b5?style=flat-square)](LICENSE) [![Client packages: Windows, Linux and macOS](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-64748b?style=flat-square)](docs/install.md)
 
 [Quick start](docs/quickstart.md) · [Download alpha](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) · [Documentation](#documentation) · [Roadmap](docs/roadmap.md) · [Report a bug](https://github.com/karatekah/karatty/issues)
 
