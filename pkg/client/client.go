@@ -27,6 +27,10 @@ type Event struct {
 	Err   error
 	Fatal bool
 }
+
+// A page can contain 100 envelopes of 12 KiB, escaped again as JSON strings.
+const maxPageBytes = 4 << 20
+
 type Backend interface {
 	List(context.Context) ([]protocol.Conversation, error)
 	History(context.Context, string, int64, int) (protocol.Page, error)
@@ -106,7 +110,7 @@ func (c *HTTP) request(ctx context.Context, method, path string, in, out any) er
 	if out == nil {
 		return nil
 	}
-	return json.NewDecoder(io.LimitReader(resp.Body, 1048576)).Decode(out)
+	return json.NewDecoder(io.LimitReader(resp.Body, maxPageBytes)).Decode(out)
 }
 func (c *HTTP) Login(ctx context.Context, signer ssh.Signer, username, invitation string) (protocol.Session, error) {
 	var challenge protocol.Challenge
@@ -282,7 +286,7 @@ func (c *HTTP) Stream(ctx context.Context, conv string, after int64) <-chan Even
 					return
 				}
 			} else {
-				conn.SetReadLimit(1048576)
+				conn.SetReadLimit(maxPageBytes)
 				delay = 250 * time.Millisecond
 				for ctx.Err() == nil {
 					var page protocol.Page

@@ -357,7 +357,22 @@ func run() error {
 		if !*confirmDelete {
 			return errors.New("delete-account requires --confirm-delete")
 		}
-		return c.DeleteAccount(ctx)
+		if err = c.DeleteAccount(ctx); err != nil {
+			return err
+		}
+		root := *stateDir
+		if root == "" {
+			config, configErr := os.UserConfigDir()
+			if configErr != nil {
+				return errors.New("account deleted; cannot locate local state for cleanup")
+			}
+			root = filepath.Join(config, "karatty")
+		}
+		if err = secureclient.RemoveLocal(root, c.Base, session.UserID); err != nil {
+			return fmt.Errorf("account deleted; local state cleanup failed in %s: %w", root, err)
+		}
+		fmt.Println("Cuenta y estado local eliminados en este equipo.")
+		return nil
 	case "send":
 		if *id == "" {
 			return errors.New("send requires --id (reuse it when retrying)")

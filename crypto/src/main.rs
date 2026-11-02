@@ -233,6 +233,21 @@ mod tests {
         })
         .unwrap();
         assert_eq!(skipped["plaintext"], "segundo");
+        // A copy of the current account and ratchet cannot recover a consumed key.
+        for session in [None, Some(skipped["session"].clone())] {
+            assert!(
+                handle(Request::Decrypt {
+                    account: skipped["account"].clone(),
+                    session,
+                    sender_identity: serde_json::from_value(
+                        alice["identity"]["curve25519"].clone()
+                    )
+                    .unwrap(),
+                    message: serde_json::from_value(first["message"].clone()).unwrap(),
+                })
+                .is_err()
+            );
+        }
         let replenished = handle(Request::Replenish {
             account: received["account"].clone(),
             one_time_keys: 1,

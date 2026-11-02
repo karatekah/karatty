@@ -110,6 +110,31 @@ func (s *Store) Remove() error {
 	return os.Remove(s.path)
 }
 
+// RemoveAccount deletes one local account after server-side account deletion.
+// It does not need the passphrase, but must acquire the same process lock.
+func RemoveAccount(root, server, uid string) error {
+	if !filepath.IsAbs(root) || server == "" || uid == "" {
+		return errors.New("invalid local state parameters")
+	}
+	path := FilePath(root, server, uid)
+	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	lock, err := os.OpenFile(path[:len(path)-5]+".lock", os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	unlock, err := lockFile(lock)
+	if err != nil {
+		return errors.New("close other local clients before deleting local state")
+	}
+	defer unlock()
+	return os.Remove(path)
+}
+
 func (s *Store) derive(passphrase []byte) {
 	key := argon2.IDKey(passphrase, s.salt[:], 3, 64*1024, 1, 32)
 	copy(s.key[:], key)

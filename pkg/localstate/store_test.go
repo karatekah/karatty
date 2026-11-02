@@ -82,3 +82,38 @@ func TestMaximumStateCanBeReopened(t *testing.T) {
 		t.Fatal("maximum state changed")
 	}
 }
+
+func TestAccountRemovalHonorsLockAndPreservesOtherAccounts(t *testing.T) {
+	root := t.TempDir()
+	pass := []byte("delete local passphrase")
+	a, _, err := Open(root, "https://example.dev", "a", pass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = a.Save([]byte("archive a")); err != nil {
+		t.Fatal(err)
+	}
+	if err = RemoveAccount(root, "https://example.dev", "a"); err == nil {
+		t.Fatal("removed a state still in use")
+	}
+	if err = a.Close(); err != nil {
+		t.Fatal(err)
+	}
+	b, _, err := Open(root, "https://example.dev", "b", pass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Save([]byte("archive b")); err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	if err = RemoveAccount(root, "https://example.dev", "a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(FilePath(root, "https://example.dev", "a")); !os.IsNotExist(err) {
+		t.Fatal("deleted account retained its file", err)
+	}
+	if _, err = os.Stat(FilePath(root, "https://example.dev", "b")); err != nil {
+		t.Fatal("deletion affected another account", err)
+	}
+}
