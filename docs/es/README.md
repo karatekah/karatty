@@ -1,19 +1,33 @@
+<div align="center">
+
+![Marca de terminal Karatty](../assets/karatty-mark.svg)
+
 # Karatty
 
 [English](../../README.md) · **Español** · [Italiano](../it/README.md)
 
-Mensajería desde tu terminal: directos 1:1 con aceptación, identidad seudónima mediante clave SSH y cifrado de extremo a extremo en una TUI local.
+**Conversaciones cifradas. Desde tu terminal.**
 
-**[v0.1.0-alpha.1](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) es una alpha experimental para uso local.** El código y los paquetes del cliente se distribuyen bajo Apache-2.0. No necesitas dominio, VPS ni correo: una máquina ejecuta el servidor y PostgreSQL, y cada participante instala el cliente. La configuración de LAN está documentada, pero la conversación entre dos equipos físicos aún no se ha comprobado. El alojamiento en Internet con `karatty.dev` queda para el futuro.
+Una TUI local con directos 1:1 por aceptación, identidad SSH y cifrado de extremo a extremo.
+
+[![v0.1.0-alpha.1](https://img.shields.io/badge/release-v0.1.0--alpha.1-4f46e5?style=flat-square)](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) [![CI](https://github.com/karatekah/karatty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/karatekah/karatty/actions/workflows/ci.yml) [![Licencia Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-7ae2b5?style=flat-square)](../../LICENSE) [![Paquetes del cliente: Windows, Linux y macOS](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-64748b?style=flat-square)](install.md)
+
+[Inicio rápido](quickstart.md) · [Descargar alpha](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) · [Documentación](#documentación) · [Roadmap](roadmap.md) · [Reportar un bug](https://github.com/karatekah/karatty/issues)
+
+</div>
+
+---
+
+Ejecuta la **alpha experimental** en tu equipo: un servidor con PostgreSQL y un cliente local por participante. Sin dominio, VPS ni correo.
 
 ## Qué incluye la alpha
 
-- Registro sin correo ni nombre real, con prueba de posesión de una clave Ed25519. Recuperación con un código guardado fuera del equipo.
-- Chats directos que requieren aceptación; solicitudes, rechazo, bloqueo y conversaciones cerradas de solo lectura.
-- Olm 1:1 con Double Ratchet mediante vodozemac 0.11.1. La TUI exige comparar la huella del contacto por otro medio y verificarla de nuevo si cambia.
-- Archivo local cifrado con frase secreta, Argon2id y XChaCha20-Poly1305. Los envíos pendientes se guardan antes de transmitirlos y pueden recuperarse tras reiniciar.
-- Sobres opacos en PostgreSQL, historial por secuencia, reconexión y deduplicación durante los 30 días de retención.
-- Eliminación de cuenta y archivos locales, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
+- **Identidad SSH.** Registro sin correo ni nombre real, con prueba de posesión de una clave Ed25519. Recuperación con un código guardado fuera del equipo.
+- **Consentimiento primero.** Chats directos que requieren aceptación; solicitudes, rechazo, bloqueo y conversaciones cerradas de solo lectura.
+- **E2EE local.** Olm 1:1 con Double Ratchet mediante vodozemac 0.11.1. La TUI exige comparar la huella del contacto por otro medio y verificarla de nuevo si cambia.
+- **Archivo cifrado.** Archivo local cifrado con frase secreta, Argon2id y XChaCha20-Poly1305. Los envíos pendientes se guardan antes de transmitirlos y pueden recuperarse tras reiniciar.
+- **Entrega persistente.** Sobres opacos en PostgreSQL, historial por secuencia, reconexión y deduplicación durante los 30 días de retención.
+- **Ciclo de vida de datos.** Eliminación de cuenta y archivos locales, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
 
 ## Probar y usar
 
@@ -32,16 +46,6 @@ Bob:   /verify alice HUELLA_DE_ALICE
 ```
 
 Después pueden escribir mensajes. Tab cambia de chat, Ctrl+L recarga y Ctrl+C sale. `/pending` muestra envíos guardados sin confirmar; `/retry ID` conserva el mismo sobre al reintentarlos. El ACK confirma persistencia en el servidor, no lectura por el destinatario.
-
-## Seguridad y límites
-
-La alpha usa solo la TUI instalada localmente y directos 1:1. El prototipo anterior por invitaciones y la TUI remota por SSH siguen en el código para desarrollo, envían texto legible al servidor y se excluyen de la alpha.
-
-**Windows Defender:** clasificó una compilación del servidor como `Behavior:Win32/DefenseEvasion.A!ml`. En el equipo de prueba funcionó después de que su propietario restaurara el archivo de cuarentena, con Defender activo. No se ha confirmado un falso positivo ni validado esa detección en otros equipos. La descarga del cliente no incluye el servidor. Consulta la [evidencia y sus límites](verification.md) antes de usar la alpha; no desactives la protección para instalarla.
-
-El secreto futuro protege mensajes cuyas claves ya se consumieron y borraron del ratchet. No protege un archivo local desbloqueado, una copia antigua del estado o un equipo comprometido. La verificación de huellas por otro medio es necesaria frente a sustituciones de identidad en el primer contacto. El servidor conoce los metadatos de entrega; un seudónimo no garantiza anonimato absoluto.
-
-No hay auditoría independiente de Karatty. La [matriz de verificación](verification.md) explica lo probado y sus límites. La retención es de 720 horas; el cliente solo puede limpiar un equipo cuando se usa. El archivo local está acotado a 16 MiB, la pantalla a 500 mensajes y el listado a 100 conversaciones. La alpha admite un dispositivo por cuenta. Grupos, SSH remoto, adjuntos, búsqueda y notificaciones quedan para después.
 
 ## Arquitectura y tecnologías
 
@@ -72,6 +76,9 @@ La [arquitectura](architecture.md) describe paquetes y flujos. El [ADR de E2EE](
 
 ## Desarrollo
 
+<details>
+<summary>Compilar y probar</summary>
+
 ```sh
 go mod verify
 cargo test --locked --manifest-path crypto/Cargo.toml
@@ -82,5 +89,9 @@ go build ./cmd/...
 ```
 
 Las pruebas de integración necesitan `TERMLINK_TEST_DATABASE_URL` hacia una base de desarrollo y `KARATTY_CRYPTO_BIN` con la ruta absoluta al puente compilado. Sin esas variables se omiten las pruebas que las requieren; una ejecución local verde no sustituye CI. Actions prueba PostgreSQL real, detector de carreras, Docker, Go y Rust, paquetes extraídos en tres sistemas y avisos de vulnerabilidades de las dependencias.
+
+</details>
+
+---
 
 El código propio usa [Apache-2.0](../../LICENSE). Los paquetes conservan los textos y atribuciones de terceros junto con sus versiones fijadas.
