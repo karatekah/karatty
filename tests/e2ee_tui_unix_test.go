@@ -162,7 +162,11 @@ func TestE2EEClientNativeTUI(t *testing.T) {
 		})
 		p.waitFor(t, func(text string) bool { return strings.Contains(text, "archivo local cifrado") })
 		p.typeLine(t, "native local passphrase")
-		p.waitFor(t, func(text string) bool { return strings.Contains(text, "Karatty") })
+		// The initial room selection clears identityView. Wait for its first
+		// stream result so it cannot erase /myfingerprint before a render frame.
+		p.waitFor(t, func(text string) bool {
+			return strings.Contains(text, "verify peer fingerprint outside Karatty:")
+		})
 		return p
 	}
 	alice, bob := start(aliceKey, aliceState), start(bobKey, bobState)
