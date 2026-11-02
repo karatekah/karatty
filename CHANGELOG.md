@@ -10,4 +10,4 @@
 - Borrado de cuenta y estado local, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
 - Paquetes nativos de cliente y puente criptográfico, hashes, commit de origen y licencias de terceros.
 - Alpha orientada a uso local/LAN con servidor propio, TLS y certificados con SAN de IP; guía de conversación entre dos cuentas. Dominio, VPS, buzones y servicio alojado quedan para el futuro.
-- Integración E2EE local aprobada en Windows; prueba entre dos equipos físicos y resolución del bloqueo de Defender del servidor Windows pendientes.
+- Ensayo Windows con servidor nativo y dos TUI: registro, aceptación, huellas, mensajes E2EE y reapertura del historial aprobados tras restaurar el servidor de cuarentena con Defender activo. LAN entre dos equipos físicos y detección en otras instalaciones sin comprobar.
