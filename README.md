@@ -1,49 +1,81 @@
-# Karatty (alpha en preparación)
+# Karatty
 
-Mensajería desde una TUI instalable. La primera alpha se limitará a chats directos 1:1 que requieren aceptación, registro seudónimo sin correo y cifrado de extremo a extremo. Este repositorio sigue privado mientras se completa esa versión; el código, la documentación y los ejecutables se publicarán juntos cuando pase las comprobaciones de lanzamiento.
+Mensajería desde tu terminal: directos 1:1 con aceptación, identidad seudónima mediante clave SSH y cifrado de extremo a extremo en una TUI local.
 
-## Sprint 1
+**v0.1.0-alpha.1 está en preparación.** El repositorio sigue privado, no hay servicio público ni descarga publicada. El dominio elegido es `karatty.dev`; faltan su compra, el VPS y el contacto público del operador. El código, los paquetes y la documentación se publicarán juntos cuando se compruebe el despliegue.
 
-El primer sprint demostró que dos usuarios invitados podían conversar entre SSH y el cliente instalable, salir y recuperar el historial desde PostgreSQL; un tercero sin membresía no podía leer, enviar ni suscribirse. Ahora se prepara la alpha pública con un alcance más pequeño y E2EE obligatorio.
+## Qué incluye la candidata
 
-Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. El modo público de ensayo en loopback ya cifra los directos 1:1 en la TUI local mediante Olm y exige comparar la huella del interlocutor. El modo de invitaciones anterior y la TUI por SSH siguen enviando texto legible al servidor; se excluyen de la alpha pública. **No hay todavía un servicio público.**
+- Registro sin correo ni nombre real, con prueba de posesión de una clave Ed25519. Recuperación con un código guardado fuera del equipo.
+- Chats directos que requieren aceptación; solicitudes, rechazo, bloqueo y conversaciones cerradas de solo lectura.
+- Olm 1:1 con Double Ratchet mediante vodozemac 0.11.1. La TUI exige comparar la huella del contacto por otro medio y verificarla de nuevo si cambia.
+- Archivo local cifrado con frase secreta, Argon2id y XChaCha20-Poly1305. Los envíos pendientes se guardan antes de transmitirlos y pueden recuperarse tras reiniciar.
+- Sobres opacos en PostgreSQL, historial por secuencia, reconexión y deduplicación durante los 30 días de retención.
+- Eliminación de cuenta y archivos locales, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
 
-## Ejecutar
+## Probar y usar
 
-Sigue la [guía local para Windows, Linux y macOS](docs/quickstart.md). Incluye PostgreSQL con Docker, certificados TLS locales, creación de invitaciones, acceso nativo/SSH y prueba de un tercero sin membresía. CI comprueba el arranque en Docker y el flujo HTTPS con el cliente nativo; las pruebas de integración cubren SSH por separado. No hay servidor público ni servicios contratados.
+Para ensayar ahora, sigue el [entorno local](docs/quickstart.md), que incluye PostgreSQL, certificados de desarrollo y dos cuentas de prueba. La [guía de instalación y primer uso](docs/install.md) explica la descarga prevista, las claves, las huellas, los reintentos y la recuperación.
 
-```sh
-go build ./cmd/...
-go vet ./...
-# Con una base PostgreSQL local y TERMLINK_TEST_DATABASE_URL configurado:
-go test -count=1 ./...
+El flujo dentro de la TUI es:
+
+```text
+Alice: /direct bob
+Bob:   /requests
+Bob:   /direct alice
+Ambos: /myfingerprint
+       Comparan sus huellas por otro medio.
+Alice: /verify bob HUELLA_DE_BOB
+Bob:   /verify alice HUELLA_DE_ALICE
 ```
 
-## Implementado
+Después pueden escribir mensajes. Tab cambia de chat, Ctrl+L recarga y Ctrl+C sale. `/pending` muestra envíos guardados sin confirmar; `/retry ID` conserva el mismo sobre al reintentarlos. El ACK confirma persistencia en el servidor, no lectura por el destinatario.
 
-- Invitaciones con caducidad/usos y registro con prueba de posesión Ed25519; desafío de un solo uso, sesión temporal y revocación administrativa.
-- Registro público opcional con seudónimo y clave SSH, sin correo ni nombre real; recuperación de clave con un código aleatorio mostrado una sola vez. Perder la clave y el código impide recuperar la cuenta.
-- Eliminación autenticada de cuenta, claves, sesiones, membresías y mensajes propios; los mensajes ajenos permanecen en un chat directo archivado y de solo lectura.
-- Canales asignados por invitación y chats directos que requieren aceptación del destinatario; solicitudes de 7 días, rechazo y bloqueo. Autorización por sesión/clave/usuario/membresía en cada operación.
-- Mensajes persistentes, secuencia transaccional por conversación, ACK de commit y deduplicación durante 30 días, con conflicto al cambiar el contenido de un reintento dentro de ese plazo.
-- Historial paginado y eventos WSS con reconexión por secuencia; gateway Wish v2 autenticado al mismo núcleo y TUI Bubble Tea v2/Bubbles v2 compartida.
-- Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.
-- Pruebas de integración con PostgreSQL real, TLS, WebSocket, cliente ejecutable y SSH con PTY; CI con detector de carreras en Linux, compilación Windows/Linux/macOS y prueba Docker.
-- Cliente local E2EE experimental para directos 1:1: Olm con ratchet, huella verificada fuera de Karatty, archivo local cifrado con frase secreta, sobres opacos en PostgreSQL y prueba de intercambio y manipulación entre dos usuarios.
+## Seguridad y límites
 
-El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI. En el prototipo, SSH permite entrar sin instalar el cliente; esa vía no formará parte de la alpha. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
+La alpha usa solo la TUI instalada localmente y directos 1:1. El prototipo anterior por invitaciones y la TUI remota por SSH siguen en el código para desarrollo, envían texto legible al servidor y se excluyen del despliegue público.
 
-## Pendiente antes de abrir la alpha
+El secreto futuro protege mensajes cuyas claves ya se consumieron y borraron del ratchet. No protege un archivo local desbloqueado, una copia antigua del estado o un equipo comprometido. La verificación de huellas por otro medio es necesaria frente a sustituciones de identidad en el primer contacto. El servidor conoce los metadatos de entrega; un seudónimo no garantiza anonimato absoluto.
 
-Faltan revisar el E2EE y completar la prueba de instalación de los dos ejecutables en cada plataforma antes de usuarios reales. También faltan comprar y configurar `karatty.dev` y el VPS, definir el correo público, probar la purga de **30 días** y la retención/restauración de respaldos remotos, y cerrar la revisión de seguridad/privacidad. La eliminación de cuentas ya funciona en la base activa, pero falta verificar su vencimiento en respaldos remotos. El historial ya oculta mensajes vencidos; la purga automática se activa con `--retention-30d` o automáticamente con `--public-signup`. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. Karatty es el nombre elegido para la alpha; la comprobación de marca y compra del dominio siguen pendientes.
+No hay auditoría independiente de Karatty. La [matriz de verificación](docs/verification.md) explica lo probado y sus límites. La retención es de 720 horas; el cliente solo puede limpiar un equipo cuando se usa. El archivo local está acotado a 16 MiB, la pantalla a 500 mensajes y el listado a 100 conversaciones. La alpha admite un dispositivo por cuenta. Grupos, SSH remoto, adjuntos, búsqueda y notificaciones quedan para después.
 
-## Estructura y documentación
+## Arquitectura y tecnologías
 
-`cmd/server`, `cmd/ssh-gateway`, `cmd/termlink`; `internal/auth`, `chat`, `storage`, `security`, `transport`; `pkg/tui`, `client`, `protocol`; `migrations`, `tests`, `deployments`, `docs`. Los límites reales de paquetes se explican en el [ADR 0001](docs/adr/0001-foundation.md), y la autenticación en el [ADR 0002](docs/adr/0002-authentication.md).
+| Parte | Tecnología |
+| --- | --- |
+| Cliente y API | Go 1.27.3, monolito modular y contratos JSON compartidos |
+| Interfaz | Bubble Tea v2 y Bubbles v2 |
+| E2EE local | Rust 1.99.1, vodozemac 0.11.1 y Olm v1 |
+| Archivo local | Argon2id y XChaCha20-Poly1305, bloqueo y reemplazo de archivo |
+| Transporte | HTTPS y WSS; autorización por operación |
+| Persistencia | PostgreSQL 17.11 y pgx, secuencias y ACK transaccionales |
+| Operación prevista | Linux/systemd, TLS y copias `pg_dump` cifradas con `age` |
 
-[Arquitectura y tecnologías](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Reportar vulnerabilidades](SECURITY.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
-[Operación y respaldos para la alpha](docs/operations.md)
-[Borrador de privacidad (no publicable aún)](docs/privacy-draft.md)
-[Preparación de la publicación](docs/release.md) · [Contribuir](CONTRIBUTING.md)
+La [arquitectura](docs/architecture.md) describe paquetes y flujos. El [ADR de E2EE](docs/adr/0003-e2ee-1to1.md) documenta identidades, ratchet, archivo y modelo de amenazas. El módulo y repositorio conservan `termlink` como identificador interno.
 
-La [guía de publicación](docs/release.md) reúne las comprobaciones para abrir este repositorio y distribuir una versión verificable. El código propio se ofrece bajo [Apache-2.0](LICENSE). Las dependencias conservan sus licencias propias.
+## Documentación
+
+| Necesidad | Guía |
+| --- | --- |
+| Instalar, conversar, actualizar y borrar | [Primer uso](docs/install.md) |
+| Ejecutar y desarrollar localmente | [Entorno local](docs/quickstart.md) · [Contribuir](CONTRIBUTING.md) |
+| Entender el sistema | [Arquitectura](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Dependencias](docs/dependencies.md) |
+| Revisar seguridad | [Garantías y límites](docs/security.md) · [Pruebas](docs/verification.md) · [Reportes privados](SECURITY.md) |
+| Operar y respaldar | [Despliegue](docs/deploy.md) · [Operación](docs/operations.md) |
+| Revisar la publicación | [Release](docs/release.md) · [Cambios](CHANGELOG.md) · [Roadmap](docs/roadmap.md) |
+| Datos y condiciones del servicio | [Privacidad](docs/privacy-draft.md) · [Condiciones](docs/terms-draft.md), borradores pendientes de datos del operador |
+
+## Desarrollo
+
+```sh
+go mod verify
+cargo test --locked --manifest-path crypto/Cargo.toml
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+go vet ./...
+go test -count=1 ./...
+go build ./cmd/...
+```
+
+Las pruebas de integración necesitan `TERMLINK_TEST_DATABASE_URL` hacia una base de desarrollo y `KARATTY_CRYPTO_BIN` con la ruta absoluta al puente compilado. Sin esas variables se omiten las pruebas que las requieren; una ejecución local verde no sustituye CI. Actions prueba PostgreSQL real, detector de carreras, Docker, Go y Rust, paquetes extraídos en tres sistemas y avisos de vulnerabilidades de las dependencias.
+
+El código propio usa [Apache-2.0](LICENSE). Los paquetes conservan los textos y atribuciones de terceros junto con sus versiones fijadas.

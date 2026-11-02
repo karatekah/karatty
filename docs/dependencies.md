@@ -16,7 +16,7 @@ Comprobadas para este sprint el 2026-10-31. Se fijan versiones exactas y hashes 
 
 Las API v2 de Charm usan `charm.land`; View devuelve tea.View y las pulsaciones son tea.KeyPressMsg. Las API se contrastaron con el código de las versiones descargadas y se verificaron mediante compilación y un PTY real sobre SSH. El gateway usa el timeout de handshake incorporado en charm.land/ssh.
 
-`crypto/Cargo.lock` fija las dependencias del puente criptográfico. CI comprueba formato y pruebas con Rust 1.99.1. `karatty-crypto` se ejecuta localmente junto con la TUI; el empaquetado nativo incluye ambos ejecutables. Antes de publicar se revisarán las licencias y avisos de todas sus dependencias y se comprobará la instalación en cada plataforma de la Release.
+`crypto/Cargo.lock` fija las dependencias del puente criptográfico. CI comprueba formato y pruebas con Rust 1.99.1. `karatty-crypto` se ejecuta localmente junto con la TUI; el empaquetado nativo incluye ambos ejecutables. `scripts/collect-licenses.ps1` conserva los textos suministrados por las dependencias, los avisos de las bibliotecas estándar y un índice dentro de cada paquete. Los textos complementarios fijados están documentados en [third_party](../third_party/README.md). CI extrae la descarga, comprueba sus avisos y ejecuta el puente Go–Rust en cada plataforma.
 
 El archivo Go de Windows descargado del endpoint oficial fue validado contra el SHA-256 anunciado allí: `f26081f438319757f8a1b46d7d0b2c5ec7583d4038e485e0aa725cfde7885fff`.
 

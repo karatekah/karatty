@@ -2,6 +2,21 @@
 
 Esta es una lista de comprobación, no un anuncio de disponibilidad. El repositorio sigue privado. El modo público de ensayo ya usa el cliente E2EE local; el modo legado por invitación sigue enviando texto legible al servidor. La publicación incluirá **el código fuente de este proyecto**, documentación y los dos ejecutables locales en una versión identificable.
 
+## Estado de la candidata
+
+| Parte | Estado |
+| --- | --- |
+| Cliente, E2EE, recuperación, reintentos y retención local | Implementados; evidencia en [verification.md](verification.md). |
+| Paquetes nativos y licencias | CI construye, extrae, verifica y guarda descargas de Windows, Linux y macOS. |
+| Instalación y documentación | [Primer uso](install.md), arquitectura, protocolo, seguridad, roadmap y changelog preparados. |
+| Instalación del servidor | [Guía](deploy.md), listener TLS explícito, unidades systemd, hook de certificado y copias preparados; no instalados en un VPS. |
+| Dominio y proveedores | `karatty.dev` elegido; compra, VPS, región y bucket pendientes. |
+| Privacidad y condiciones | Borradores; faltan identidad y correo público del operador y revisión aplicable. |
+| Pruebas remotas | Pendientes de disponer de la infraestructura contratada. |
+| GitHub público | Repositorio privado; preparar un borrador de Release no cambia su visibilidad ni publica el servicio. |
+
+La candidata técnica puede revisarse y probarse localmente. La activación pública requiere los datos y recursos de las filas pendientes; no deben completarse con valores inventados.
+
 ## Condiciones antes de abrir el repositorio
 
 1. Completar E2EE de directos 1:1 con secreto futuro según el [ADR 0003](adr/0003-e2ee-1to1.md) en el cliente TUI local. Probar envío, recepción, identidad del contacto, manipulación de sobres, pérdida y cambio de claves, reintentos, historial y reconexión. Confirmar que la API, PostgreSQL y los logs no reciben texto legible. Retirar canales y TUI SSH remota de la configuración pública.
@@ -22,7 +37,7 @@ Desde PowerShell, con Go 1.27.3 y Rust 1.99.1 disponibles en la plataforma de de
 ./scripts/build-release.ps1 -Version v0.1.0-alpha.1
 ```
 
-El script compila para la plataforma nativa `karatty` sin CGo y `karatty-crypto` con Rust. Crea una carpeta y archivo comprimido por plataforma en `dist/VERSIÓN/`, con hashes de ambos ejecutables y del archivo. Se niega a sobrescribir una carpeta existente. No incluye el servidor, claves, configuración ni base de datos. CI construye los candidatos en Windows, Linux y macOS; las arquitecturas concretas son las de esos runners y deben confirmarse antes de la Release.
+El script compila para la plataforma nativa `karatty` sin CGo y `karatty-crypto` con Rust. Crea una carpeta y archivo comprimido por plataforma en `dist/VERSIÓN/`, con hashes de ambos ejecutables y del archivo. Incluye licencia propia, textos de terceros, locks de dependencias y `BUILD_INFO` con el commit. Se niega a sobrescribir una carpeta existente. No incluye el servidor, claves, configuración ni base de datos. CI construye, extrae y ejecuta el puente de cada paquete y conserva las descargas como artifacts de Actions para Windows, Linux y macOS.
 
 Antes de adjuntar archivos, comparar el commit con un CI verde, ejecutar `karatty version` y comprobar el hash del archivo y de ambos ejecutables. Instalar cada paquete descargado en otra máquina de su plataforma y probar registro, comparación de huellas, chat y actualización de versión contra el servicio publicado. En Windows, `Get-FileHash ARCHIVO -Algorithm SHA256`; en Linux/macOS, `sha256sum -c SHA256SUMS`.
 

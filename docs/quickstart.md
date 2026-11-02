@@ -60,7 +60,7 @@ Solicitar un chat directo: `karatty direct --peer bob` con los mismos flags de c
 
 ## Ensayo local del registro público
 
-Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-host-key`. Este modo permite registro con seudónimo y clave Ed25519, sin correo ni invitación; activa automáticamente la purga horaria de mensajes vencidos. El cliente TUI local cifra los directos, pero el servicio continúa restringido a loopback mientras se completan las pruebas y la operación. Después de crear una clave Ed25519, ejecuta:
+Detén el servidor de ejemplo y reinícialo con `--public-signup`, sin `--ssh-host-key`. Este modo permite registro con seudónimo y clave Ed25519, sin correo ni invitación; activa automáticamente la purga horaria de mensajes vencidos. El ensayo local escucha en loopback. El despliegue externo requiere `--public-network` y TLS según [deploy.md](deploy.md). Después de crear una clave Ed25519, ejecuta:
 
 ```powershell
 ./bin/karatty.exe register --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice --username alice --public
@@ -120,7 +120,7 @@ Las pruebas crean y eliminan un esquema aleatorio dentro de la base indicada. Ut
 
 Operaciones administrativas locales (requieren DATABASE_URL): `server --revoke-key 'SHA256:…'` y `server --revoke-member USER_ID --conversation CONVERSATION_ID`. El ID de usuario aparece al registrar; la huella de su clave se consulta con `ssh-keygen -lf ARCHIVO.pub`. La revocación no elimina el historial: bloquea nuevas operaciones y termina las suscripciones al siguiente sondeo (250 ms más el tiempo de consulta). Los datos ya entregados no se pueden retirar de la pantalla remota.
 
-El titular puede eliminar su cuenta con `karatty delete-account --server URL --ca-cert CA --key CLAVE --confirm-delete`. La operación es irreversible: borra su usuario, claves, sesiones, membresías y mensajes. Conserva los mensajes escritos por otros participantes; los chats directos afectados quedan en modo solo lectura para ellos. Los datos de respaldos seguirán su vencimiento independiente cuando se configure y compruebe antes de la alpha pública.
+El titular puede eliminar su cuenta con `karatty delete-account --server URL --ca-cert CA --key CLAVE --confirm-delete`. La operación es irreversible: borra su usuario, claves, sesiones, membresías y mensajes propios, y retira los archivos locales de esa cuenta bajo el directorio de estado configurado en este equipo. Cierra otros clientes para permitir la limpieza local. Conserva los mensajes escritos por otros participantes; los chats directos afectados quedan en modo solo lectura para ellos. Los datos de respaldos seguirán su vencimiento independiente cuando se configure y compruebe antes de la alpha pública.
 
 Retención de mensajes: el historial oculta los mensajes después de 720 horas y conserva sus huecos de secuencia. `server --purge-expired-messages` elimina una vez todos los mensajes vencidos y muestra el número borrado. Para programar la purga al arrancar y cada hora, añade `--retention-30d` al comando de inicio de `server`; está desactivada por defecto en desarrollo. La purga borra también los identificadores de deduplicación, cuya garantía dura 30 días. Los respaldos necesitan una política de vencimiento separada antes de operar una alpha.
 

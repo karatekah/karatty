@@ -4,10 +4,13 @@ El repositorio sigue privado mientras se prepara la primera alpha. Esta guía de
 
 ## Preparar el entorno
 
-Usa Go 1.27.3 y PostgreSQL 17.11. La [guía local](docs/quickstart.md) muestra cómo iniciar PostgreSQL con Docker, generar certificados de desarrollo y ejecutar el cliente. Las pruebas de integración requieren `TERMLINK_TEST_DATABASE_URL` apuntando a una **base de desarrollo** con permiso para crear esquemas. Nunca apuntes las pruebas a producción.
+Usa Go 1.27.3, Rust 1.99.1 y PostgreSQL 17.11. La [guía local](docs/quickstart.md) muestra cómo iniciar PostgreSQL con Docker, generar certificados de desarrollo y ejecutar el cliente. Las pruebas de integración requieren `TERMLINK_TEST_DATABASE_URL` apuntando a una **base de desarrollo** con permiso para crear esquemas. `KARATTY_CRYPTO_BIN` debe apuntar al puente compilado para ejecutar la integración E2EE. Nunca apuntes las pruebas a producción.
 
 ```sh
 go mod verify
+cargo test --locked --manifest-path crypto/Cargo.toml
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+# Define KARATTY_CRYPTO_BIN con la ruta absoluta a crypto/target/release/karatty-crypto.
 go vet ./...
 go test -count=1 ./...
 go build ./cmd/...
