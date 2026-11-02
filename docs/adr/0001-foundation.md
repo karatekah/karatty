@@ -1,15 +1,17 @@
-# ADR 0001 — Núcleo compartido y PostgreSQL
+# ADR 0001 — Shared core and PostgreSQL
 
-Estado: aceptado. Fecha: 2026-10-31.
+**English** · [Español](../es/adr/0001-foundation.md) · [Italiano](../it/adr/0001-foundation.md)
 
-Un módulo Go con tres ejecutables: API, gateway SSH y cliente. El gateway autentica la posesión de la clave mediante el protocolo SSH y crea una sesión del mismo núcleo. API y SSH aplican autorización por operación. Los componentes TUI se comparten mediante una interfaz pequeña.
+Accepted, 2026-10-31. This records the original foundation decision; E2EE identity/key tables were added later under [ADR 0003](0003-e2ee-1to1.md).
 
-PostgreSQL conserva usuarios, claves públicas, sesiones, invitaciones, desafíos de autenticación, conversaciones, membresías y mensajes. No se crean tablas devices/receipts sin uso: ACK de persistencia se expresa mediante la respuesta del mensaje y su ID; confirmaciones de lectura y dispositivos quedan pendientes.
+One Go module builds an API, SSH gateway and client. SSH verifies key possession and creates a session against the same domain core. API/SSH authorize each operation; TUI components share a small interface.
 
-El servidor bloquea la conversación para asignar una secuencia transaccional. La unicidad por conversación/remitente/ID del cliente deduplica reintentos mientras se conserva el mensaje, durante 30 días. El mismo ID con otro contenido produce conflicto dentro de ese plazo. Al vencer, la purga borra también el ID; un envío posterior con ese ID es nuevo. No se utiliza el reloj del cliente.
+PostgreSQL stores users, public keys, sessions, invitations, authentication challenges, conversations, memberships and messages. Unused device/read-receipt tables were not added to the initial sprint. Persistence ACKs use the message response/ID; read receipts and multiple devices remain future work.
 
-Tiempo real inicial: lectura incremental del registro durable cada 250 ms mediante WSS o adaptador de núcleo. Cada lote reevalúa sesión, clave, usuario y membresía. Esto evita perder eventos entre historial y suscripción, admite varios procesos y no exige Redis. Coste: consultas periódicas y hasta 250 ms de latencia; medir antes de añadir LISTEN/NOTIFY.
+A conversation lock assigns transactional sequences. Conversation/sender/client-ID uniqueness deduplicates retries while the message is retained, for 30 days. Different content under that ID conflicts within the window. Expiry removes the ID, making a later send new. Client clocks are not trusted.
 
-Las lecturas y operaciones conservan bloqueos compartidos de autorización durante la transacción; la revocación espera las operaciones en curso y los siguientes lotes fallan. Sesiones/clave revocadas cierran la suscripción al siguiente sondeo. El gateway reevalúa también las sesiones SSH inactivas.
+Initial real time reads the durable log every 250 ms through WSS or a core adapter. Every batch rechecks session, key, account and membership. This closes the history/subscription race, supports several processes and avoids requiring Redis. The tradeoff is periodic database work and up to 250 ms latency; measure before adding LISTEN/NOTIFY.
 
-Paquetes users/messages/realtime se añadirán cuando tengan una responsabilidad independiente. En el sprint sus operaciones pertenecen a auth/chat/transport; no se crean directorios vacíos por convención.
+Reads/operations retain shared authorization locks during transactions; revocation waits for active operations and subsequent batches fail. Revoked keys/sessions close subscriptions at the next poll. The gateway also reevaluates idle SSH sessions.
+
+Separate users/messages/realtime packages are added only when they have distinct responsibilities. Sprint operations live in auth/chat/transport; empty directories are not created merely by convention.

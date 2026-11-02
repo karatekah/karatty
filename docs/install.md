@@ -1,94 +1,96 @@
-# Instalar y usar Karatty alpha
+# Install and use Karatty alpha
 
-La primera alpha está orientada a uso local con un servidor administrado por ti. No hay servicio del proyecto en Internet; dominio y VPS quedan para el futuro. Descarga los paquetes de [v0.1.0-alpha.1](https://github.com/karatekah/termlink/releases/tag/v0.1.0-alpha.1). Para iniciar el servidor y probar dos cuentas, sigue la [guía local y LAN](quickstart.md). La LAN entre dos equipos físicos sigue sin comprobarse.
+**English** · [Español](es/install.md) · [Italiano](it/install.md)
 
-Los comandos de esta página usan un servidor en el mismo equipo. Para LAN, sustituye **en todos los comandos** la URL por la IP privada del servidor y `RUTA_CA` por la ruta a `ca.crt`, recibido y comprobado con su administrador. Usa siempre la misma URL para conservar la identidad local. Los clientes no necesitan PostgreSQL.
+This alpha targets local use with a server you administer. No project-hosted Internet service is available; domain/VPS are future work. Download [v0.1.0-alpha.1](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1). Use the [local/LAN guide](quickstart.md) to start a server and try two accounts. Two-physical-machine LAN testing remains pending.
 
-## Descargar y verificar
+These examples use a same-machine server. For LAN, replace the URL in **every** command with the private server address and `CA_PATH` with the `ca.crt` received/verified with its administrator. Keep the same URL to retain local identity. Client machines do not need PostgreSQL.
 
-La Release incluye estos paquetes del cliente; el servidor se compila desde el código según la guía local. Otras arquitecturas no tienen descarga precompilada en esta versión.
+## Download and verify
 
-| Plataforma | Archivo |
+Client packages contain both executables; build the server from source using the local guide. Other architectures have no prebuilt package in this release.
+
+| Platform | File |
 | --- | --- |
 | Windows x64 | `karatty-v0.1.0-alpha.1-windows-amd64.zip` |
 | Linux x64 | `karatty-v0.1.0-alpha.1-linux-amd64.tar.gz` |
 | macOS Apple Silicon | `karatty-v0.1.0-alpha.1-darwin-arm64.tar.gz` |
 
-Descarga también `SHA256SUMS` de la misma versión y compara el hash antes de extraer:
+Also download the same release's `SHA256SUMS` and compare before extraction:
 
 ```powershell
-# Windows: compara el resultado con la línea del archivo descargado.
+# Windows: compare the result with the downloaded archive line.
 Get-FileHash .\karatty-v0.1.0-alpha.1-windows-amd64.zip -Algorithm SHA256
 ```
 
 ```sh
 # Linux
 sha256sum -c SHA256SUMS --ignore-missing
-# macOS: compara el resultado con SHA256SUMS.
+# macOS: compare the result with SHA256SUMS.
 shasum -a 256 karatty-v0.1.0-alpha.1-darwin-arm64.tar.gz
 ```
 
-Extrae el paquete en una carpeta propia y conserva juntos `karatty` y `karatty-crypto` (con `.exe` en Windows). Puedes añadir esa carpeta a tu PATH. La descarga incluye sus licencias, las dependencias fijadas y `BUILD_INFO` con el commit de origen. Los paquetes alpha no están firmados ni notarizados; los hashes comprueban integridad respecto del manifiesto publicado, no autentican por sí solos al autor.
+Extract into your own directory and keep `karatty`/`karatty-crypto` together (`.exe` on Windows). Optionally add that directory to PATH. Licenses, dependency locks and source-commit `BUILD_INFO` are included. Alpha packages are unsigned/not notarized. Hashes check integrity against the published manifest; they do not independently authenticate the author.
 
-Windows Defender bloqueó una compilación del servidor durante el ensayo. Su propietario la restauró y después pasaron las pruebas locales con las protecciones activas. La clasificación no se ha confirmado errónea. Si tu antivirus bloquea un archivo, conserva la alerta y revisa su procedencia; no desactives la protección para instalar. El [registro del ensayo](verification.md) identifica la compilación probada y sus límites.
+Windows Defender blocked one server build during testing. Its owner restored it and local tests then passed with protection active; the classification has not been confirmed wrong. If antivirus blocks a file, retain the alert and check provenance rather than disabling protection. [Verification](verification.md) identifies the tested build and limits.
 
-## Crear una identidad
+## Create an identity
 
-Usa una clave SSH Ed25519 dedicada a Karatty. OpenSSH pide una frase para protegerla; elige también una frase independiente para el archivo local de mensajes.
-
-```sh
-ssh-keygen -t ed25519 -f RUTA_DE_TU_CLAVE
-karatty register --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key RUTA_DE_TU_CLAVE --username TU_SEUDONIMO --public
-```
-
-En PowerShell, usa `./karatty.exe` si ejecutas desde la carpeta extraída. El seudónimo admite letras ASCII, números, guion y guion bajo, hasta 64 caracteres. No se pide correo ni nombre real para crear la cuenta. El servidor registra tu clave pública y metadatos de cuenta y conversación; un seudónimo no garantiza anonimato absoluto.
-
-Guarda el código de recuperación que aparece una sola vez **fuera de este equipo**. Después se solicita y confirma la frase secreta local de al menos 12 caracteres. Esa frase no se envía al servidor. El archivo local solo puede abrirse con ella; el código de recuperación no la sustituye.
-
-## Abrir un directo
+Use a dedicated Ed25519 SSH key. OpenSSH asks for its protecting passphrase; choose a separate passphrase for the local message archive.
 
 ```sh
-karatty chat --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key RUTA_DE_TU_CLAVE
+ssh-keygen -t ed25519 -f YOUR_KEY_PATH
+karatty register --server https://127.0.0.1:8443 --ca-cert CA_PATH --key YOUR_KEY_PATH --username YOUR_ALIAS --public
 ```
 
-Introduce la frase de la clave SSH si está protegida y la del archivo local. Dentro de la TUI:
+In PowerShell, use `./karatty.exe` from the extracted folder. Usernames allow ASCII letters, digits, hyphens/underscores, up to 64 characters. Registration asks for no email or real name. Public keys and account/conversation metadata are stored; a pseudonym is not absolute anonymity.
 
-1. Alice escribe `/direct bob` para solicitar el chat.
-2. Bob usa `/requests` y acepta con `/direct alice`.
-3. Ambos usan `/myfingerprint` para obtener su propia huella y la comparten por otro medio que ya confíen.
-4. Alice consulta `/fingerprint bob`, compara el valor con el que Bob le dio y escribe `/verify bob HUELLA_DE_BOB`. Bob hace lo mismo con la de Alice.
-5. Escribe un mensaje y pulsa Enter. Tab cambia de chat; PgUp/PgDn recorren el historial; Ctrl+L recarga; Ctrl+C sale.
+Store the recovery code shown once **outside this device**. Then choose/confirm a local passphrase of at least 12 characters. It never leaves the device, and the recovery code cannot replace it. Runtime prompts are currently Spanish.
 
-La verificación por otro medio permite detectar que un servidor sustituya una identidad en el primer contacto. Una huella copiada únicamente de la misma conversación no ofrece esa comprobación independiente. La TUI detiene el envío si cambia la identidad del contacto.
-
-El ACK confirma que el servidor guardó el sobre cifrado; no confirma que la otra persona lo haya leído. Ctrl+R reintenta un envío sin confirmar con el mismo ID y sobre. Tras reiniciar, `/pending` lista los envíos guardados del directo y `/retry ID` reintenta uno. En CLI, `pending` los lista y `retry-pending --conversation ID_DEL_CHAT --id ID_DEL_ENVIO` lo reintenta. Esc permite editar la entrada y conserva el envío guardado para revisión; abandonar un envío incierto no puede retirar una copia que el servidor ya haya aceptado. `/decline USUARIO` rechaza solicitudes, `/block USUARIO` cierra el directo y `/unblock USUARIO` permite recibir nuevas solicitudes.
-
-## Historial, recuperación y borrado
-
-Se conservan mensajes durante 720 horas (30 días). El servidor oculta los vencidos y los purga al arrancar y cada hora. El cliente limpia su archivo local al abrirlo o guardarlo y oculta entradas vencidas al leerlo; un equipo apagado no puede ejecutar esa limpieza. La guía local no configura respaldos automáticos. Si el administrador hace copias, debe informar y comprobar su retención. La ventana máxima de siete días adicionales es un requisito del futuro servicio alojado, todavía sin operar. El secreto futuro no protege una copia local ya desbloqueada ni un equipo comprometido mientras se usa.
-
-Si pierdes la clave SSH, genera otra y ejecuta:
+## Open a direct chat
 
 ```sh
-karatty recover --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key NUEVA_CLAVE --username TU_SEUDONIMO
+karatty chat --server https://127.0.0.1:8443 --ca-cert CA_PATH --key YOUR_KEY_PATH
 ```
 
-Introduce el código guardado y conserva el código nuevo. Luego abre el cliente con la clave nueva. Si el archivo anterior sigue en este equipo, cierra otros clientes y usa la misma frase secreta local para migrar el historial ya legible. El estado anterior se retira después de guardar el nuevo. Los envíos anteriores sin ACK se listan con `karatty uncertain` y no se reenvían solos. Si perdiste el archivo o su frase, recuperar la cuenta no restaura esos mensajes.
+Enter the SSH-key passphrase if protected, then the local archive passphrase. In the TUI:
 
-El contacto debe comparar tu nueva huella por otro medio y usar `/reverify USUARIO HUELLA`. Si conserva envíos pendientes, `/discardpending USUARIO` permite abandonarlos explícitamente antes de aceptar la nueva identidad. Comprueba si llegaron antes de repetirlos. Los mensajes antiguos sin descifrar pueden figurar como no disponibles.
+1. Alice requests `/direct bob`.
+2. Bob checks `/requests` and accepts with `/direct alice`.
+3. Each runs `/myfingerprint` and shares that own fingerprint over another trusted channel.
+4. Alice checks `/fingerprint bob`, compares Bob's independently supplied value and uses `/verify bob BOB_FINGERPRINT`. Bob does the equivalent for Alice.
+5. Type a message and press Enter. Tab switches chat; PgUp/PgDn scroll; Ctrl+L reloads; Ctrl+C exits.
 
-Para borrar la cuenta:
+Independent comparison detects first-contact server identity substitution. Copying a fingerprint solely through the same conversation is not an independent check. A changed identity stops sending.
+
+ACK means the server persisted the encrypted envelope, not that the recipient read it. Ctrl+R retries an unconfirmed send with the same ID/envelope. After restarting, `/pending` lists saved sends for the direct chat and `/retry ID` retries one. CLI equivalents are `pending` and `retry-pending --conversation CHAT_ID --id SEND_ID`. Esc returns to editing while preserving the saved send for review. Discarding an uncertain send cannot retract a copy already accepted by the server. `/decline USER`, `/block USER` and `/unblock USER` manage requests/blocking.
+
+## History, recovery and deletion
+
+Messages are retained for 720 hours (30 days). The server hides expired messages and purges at startup/hourly. The client cleans its archive on open/save and filters expired reads; offline devices cannot run cleanup. The local guide sets up no automatic backups. Administrators must disclose/verify their retention. The future hosted-service requirement is at most seven additional backup days, not an active service promise. Forward secrecy does not protect an unlocked copy or compromised device.
+
+If your SSH key is lost, generate another and run:
 
 ```sh
-karatty delete-account --server https://127.0.0.1:8443 --ca-cert RUTA_CA --key RUTA_DE_TU_CLAVE --confirm-delete
+karatty recover --server https://127.0.0.1:8443 --ca-cert CA_PATH --key NEW_KEY --username YOUR_ALIAS
 ```
 
-Se borran tu cuenta, claves, sesiones y mensajes propios de la base activa y los archivos locales de esa cuenta en el directorio configurado de este equipo. Cierra otros clientes para que la limpieza local pueda adquirir el bloqueo. Las copias de otras personas y otros equipos no se pueden retirar a distancia; los respaldos siguen su vencimiento. Si el servidor borró la cuenta pero falló la limpieza local, el CLI muestra la ruta que requiere revisión.
+Enter the saved code and retain its replacement. Open the client with the new key. If the old archive remains locally, close other clients and use the same local passphrase to migrate readable history. Old state is removed only after the new state is saved. Earlier sends without ACK are listed by `karatty uncertain` and do not resend automatically. Recovering the account cannot restore a lost archive or passphrase.
 
-## Actualizar o desinstalar
+Contacts must compare the new fingerprint through another channel and run `/reverify USER FINGERPRINT`. Pending sends require explicit `/discardpending USER` before accepting the new identity; check whether they arrived before repeating them. Previously undecrypted messages may be unavailable.
 
-Para actualizar, cierra Karatty, verifica y extrae la nueva descarga, y reemplaza ambos ejecutables juntos. Conserva tu clave SSH y el directorio de estado. La alpha admite un solo dispositivo por cuenta.
+To delete the account:
 
-El estado se guarda por defecto en la carpeta de configuración del usuario, bajo `karatty`: `%AppData%\karatty` en Windows, `$XDG_CONFIG_HOME/karatty` o `~/.config/karatty` en Linux, y `~/Library/Application Support/karatty` en macOS. `--state-dir RUTA_ABSOLUTA` permite elegir otro directorio. Desinstalar los ejecutables no borra una cuenta del servidor; usa `delete-account` antes si también quieres eliminarla.
+```sh
+karatty delete-account --server https://127.0.0.1:8443 --ca-cert CA_PATH --key YOUR_KEY_PATH --confirm-delete
+```
 
-Arquitectura y tecnologías: [architecture.md](architecture.md). Garantías y límites del cifrado: [ADR 0003](adr/0003-e2ee-1to1.md). Desarrollo y pruebas: [CONTRIBUTING](../CONTRIBUTING.md).
+This removes the account, keys, sessions and authored messages from active storage and that account's local files under this device's configured state root. Close other clients so cleanup can acquire its lock. Other people's copies/devices cannot be remotely erased; backups follow their own expiry. If server deletion succeeds but local cleanup fails, the CLI reports the path requiring review.
+
+## Update or uninstall
+
+Close Karatty, verify/extract the new package and replace **both** executables together. Keep SSH keys and state. The alpha supports one device per account.
+
+Default state lives under the user's configuration directory: `%AppData%\karatty` (Windows), `$XDG_CONFIG_HOME/karatty` or `~/.config/karatty` (Linux), `~/Library/Application Support/karatty` (macOS). Override with `--state-dir ABSOLUTE_PATH`. Removing executables does not delete a server account; run `delete-account` first if that is intended.
+
+See [architecture](architecture.md), [E2EE guarantees/limits](adr/0003-e2ee-1to1.md) and [contributing](../CONTRIBUTING.md).

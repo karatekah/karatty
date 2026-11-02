@@ -1,41 +1,47 @@
-# Publicación de Karatty v0.1.0-alpha.1
+# Publishing Karatty v0.1.0-alpha.1
 
-La [primera alpha](https://github.com/karatekah/termlink/releases/tag/v0.1.0-alpha.1) distribuye código fuente, documentación y paquetes del cliente para uso local con servidor propio. Es experimental. La configuración de LAN está documentada, pero la conversación entre dos equipos físicos aún no se ha comprobado. El proyecto no ofrece alojamiento en Internet.
+**English** · [Español](es/release.md) · [Italiano](it/release.md)
 
-## Alcance y evidencia
+The [first alpha](https://github.com/karatekah/karatty/releases/tag/v0.1.0-alpha.1) distributes source, documentation and client packages for local use with your own server. It is experimental. LAN configuration is documented, but a two-physical-host conversation is unverified. No project-hosted Internet service is available.
 
-| Parte | Estado |
+## Scope and evidence
+
+| Component | Status |
 | --- | --- |
-| Cliente, E2EE, recuperación, reintentos y retención | Implementados; pruebas y límites en [verification.md](verification.md). |
-| Ensayo Windows | Servidor TLS y dos TUI nativas: registro, aceptación, huellas, mensajes y reapertura del historial. |
-| Defender | La compilación del ensayo necesitó restaurarse desde cuarentena. Defender permaneció activo; no se ha confirmado un falso positivo ni validado otras instalaciones. |
-| Paquetes | Windows x64, Linux x64 y macOS Apple Silicon, con ambos ejecutables, licencias, locks, BUILD_INFO y hashes. El servidor se compila desde el código. |
-| LAN entre dos equipos físicos | Pendiente. Se publica como configuración experimental, sin afirmar que esa prueba pasó. |
-| Dominio, VPS y proveedores | Trabajo futuro; no se necesitan para esta alpha local. |
-| Privacidad y condiciones del futuro alojamiento | Borradores sin vigencia. Cada administrador debe informar sobre su instancia y copias. |
-| Reportes de seguridad | Canal privado de GitHub según [SECURITY.md](../SECURITY.md). |
+| E2EE client, recovery, retries, retention | Implemented; [evidence and limits](verification.md) |
+| Windows trial | Native TLS server/two TUIs: signup, acceptance, fingerprints, messages and reopened history |
+| Defender | Trial build required quarantine restoration. Protection stayed active; false positive and other-installation behavior remain undetermined |
+| Packages | Windows x64, Linux x64, macOS Apple Silicon; client/bridge, licenses, locks, BUILD_INFO/hashes. Build server separately |
+| Two physical LAN hosts | Pending; configuration is experimental |
+| Domain/VPS/providers | Future work, not required for local alpha |
+| Future hosted-service privacy/terms | Inactive drafts; administrators disclose their own instance/copies |
+| Security reports | Private GitHub channel under [SECURITY.md](../SECURITY.md) |
 
-El código propio usa Apache-2.0; las dependencias conservan sus licencias. Las descargas no están firmadas ni notarizadas. No hay auditoría independiente de Karatty.
+Own code is Apache-2.0; dependencies retain their licenses. Downloads are unsigned/not notarized. Karatty has no independent audit.
 
-## Comprobaciones de publicación
+## Publication checks
 
-1. Registrar el resultado de CI para el commit que se etiqueta: PostgreSQL real, E2EE, TUI, Go/Rust, carreras, extracción de paquetes y avisos de dependencias. La prueba local Windows corresponde a la compilación identificada en la matriz; no se extiende automáticamente a otros archivos o equipos.
-2. Revisar el historial completo y los archivos actuales para secretos, datos personales, claves, volcados o configuración privada. Revisar también los logs retenidos de Actions, que pasan a ser públicos con el repositorio. Mantener `.local/`, `.env`, `bin/` y `dist/` ignorados.
-3. Revisar README, instalación, arquitectura, seguridad, contribuciones y changelog. Mantener visibles las limitaciones de Defender y LAN; los borradores de un futuro servicio alojado no son políticas activas.
-4. Integrar la rama de preparación en `main`, conservar los commits convencionales y verificar CI en el commit final. Descargar sus paquetes y comprobar SHA-256, licencias y el commit de `BUILD_INFO`.
-5. Crear la etiqueta `v0.1.0-alpha.1` sobre ese commit, adjuntar los tres paquetes y un manifiesto `SHA256SUMS` conjunto, y preparar las notas con los resultados y límites.
-6. Hacer público el repositorio, habilitar el reporte privado de vulnerabilidades y publicar la Release como **prerelease**. Verificar sin autenticación el repositorio, README, etiqueta, página de Release y descargas.
+1. Record CI for the tagged commit: PostgreSQL, E2EE, native TUI, Go/Rust, races, package extraction and dependency advisories. The Windows manual evidence identifies its exact build; it does not automatically cover another binary/device.
+2. Review full history/current files for personal information, exposed credentials, database exports and private keys. Review retained Actions logs before they become public. Keep `.local/`, `.env`, `bin/`, `dist/` ignored.
+3. Review README, installation, architecture, security, contribution/changelog pages. Keep Defender/LAN limitations visible and future hosted-policy drafts explicitly inactive.
+4. Merge preparation into `main`, preserve conventional commits and verify CI on the final commit. Download its packages; verify SHA-256, licenses and `BUILD_INFO` source commit.
+5. Tag `v0.1.0-alpha.1` at that commit, attach three packages and a combined `SHA256SUMS`, and write evidence/limitations in the notes.
+6. Make the repository public, enable private vulnerability reports, publish as a **prerelease**, and check repository, README, tag, Release/downloads without authentication.
 
-El ensayo entre dos equipos físicos será necesario antes de declarar validada la LAN. La compra de dominio, VPS, buzones y las pruebas de proveedores pertenecen al [futuro servicio alojado](operations.md).
+LAN validation requires a two-machine trial before claiming that support verified. Domain/VPS/mailboxes/provider tests belong to [future hosting](operations.md).
 
-## Construir paquetes del cliente
+## Build client packages
 
-Desde PowerShell, con Go 1.27.3 y Rust 1.99.1 en la plataforma de destino:
+On the target platform with PowerShell, Go 1.27.3 and Rust 1.99.1:
 
 ```powershell
 ./scripts/build-release.ps1 -Version v0.1.0-alpha.1
 ```
 
-El script construye para la plataforma nativa `karatty` sin CGo y `karatty-crypto` con Rust. Crea una carpeta y archivo comprimido en `dist/VERSIÓN/`, con hashes de ambos ejecutables y del archivo. Incluye licencia propia, textos de terceros, locks de dependencias y `BUILD_INFO` con el commit. Rechaza sobrescribir una carpeta existente. No incluye claves, configuración ni base de datos. El servidor se construye por separado según [quickstart.md](quickstart.md).
+The script builds native `karatty` without CGo and Rust `karatty-crypto`. It creates a directory/archive in `dist/VERSION/`, binary/archive hashes, own/third-party licenses, locks and source-commit `BUILD_INFO`. Existing output directories cannot be overwritten. Keys, private configuration and databases are excluded. Build the server separately under [quickstart](quickstart.md).
 
-CI construye, extrae y ejecuta el puente de cada paquete en Windows, Linux y macOS. Sus descargas de Actions son insumos de la Release; no sustituyen su publicación y verificación. La [guía de instalación](install.md) explica cómo comprobar los hashes, conservar ambos ejecutables juntos, crear la identidad y conversar.
+CI builds/extracts/executes each bridge on Windows/Linux/macOS. Actions packages are Release inputs, not a substitute for publication/access checks. [Installation](install.md) covers verification, paired executables, identity and chat.
+
+## Documentation after publication
+
+English is now primary with complete [Spanish](es/release.md)/[Italian](it/release.md) counterparts; see [translation maintenance](translations.md). The repository is now `karatekah/karatty`. Published alpha.1 binaries, checksums, source commit `5e4adde` and tag remain immutable. Its Go module used the former name; current development uses the new one. [Version notes](releases/v0.1.0-alpha.1.md) describe the published artifacts.

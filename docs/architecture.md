@@ -1,61 +1,67 @@
-# Arquitectura de Karatty
+# Karatty architecture
 
-Estado: alpha experimental para uso local; la configuración de LAN aún necesita una prueba entre equipos físicos. No hay servicio alojado por el proyecto. Este documento describe el código actual. El modo de registro abierto usa E2EE local para directos; el modo anterior por invitación y SSH remoto siguen sin E2EE.
+**English** · [Español](es/architecture.md) · [Italiano](it/architecture.md)
 
-## Vista general
+Experimental alpha for local use; two-machine LAN testing is pending. The project does not operate a hosted service. Open registration uses local E2EE for direct chats; the older invitation/remote-SSH prototype does not.
+
+## Overview
 
 ```mermaid
 flowchart LR
-    TUI[Cliente TUI local] <-->|pipes locales| OLM[Olm local en Rust]
-    TUI --> STATE[Archivo local cifrado con frase secreta]
-    TUI -->|sobres por HTTPS y WSS| API[API Go]
-    SSH[Gateway SSH del prototipo] --> CORE[Núcleo Go]
+    TUI[Local TUI client] <-->|local pipes| OLM[Local Olm in Rust]
+    TUI --> STATE[Local passphrase-encrypted archive]
+    TUI -->|envelopes over HTTPS and WSS| API[API Go]
+    SSH[Prototype SSH gateway] --> CORE[Go core]
     API --> CORE
     CORE --> PG[(PostgreSQL)]
-    PG -.->|pg_dump propuesto| BACKUP[Respaldo cifrado con age]
+    PG -.->|proposed pg_dump| BACKUP[Backup encrypted with age]
 ```
 
-El proceso `cmd/server` ofrece la API y, opcionalmente, el gateway SSH. `cmd/ssh-gateway` permite ejecutar el gateway por separado. `cmd/termlink` compila el cliente `karatty`. El cliente local usa `pkg/client` para HTTPS y WebSocket; `pkg/tui` contiene la interfaz Bubble Tea. La TUI SSH se ejecuta en el servidor y comparte el núcleo, por eso queda fuera de la alpha con E2EE.
+`cmd/server` provides the API and an optional prototype SSH gateway. `cmd/ssh-gateway` runs that gateway separately. `cmd/termlink` builds the `karatty` client. HTTPS/WSS live in `pkg/client`; `pkg/tui` holds the Bubble Tea interface. A remote SSH TUI executes on the server and shares its core, so it is excluded from the E2EE alpha.
 
-## Tecnologías actuales
+The canonical module is `github.com/karatekah/karatty`. Historical v0.1.0-alpha.1 source uses the former `termlink` module path. Existing `cmd/termlink` build paths, `TERMLINK_*` variables and legacy authentication domains retain their spelling for compatibility.
 
-| Componente | Tecnología y motivo |
+## Stack and packages
+
+| Component | Technology and reason |
 | --- | --- |
-| Cliente y servidor | Go 1.27.3; un módulo compartido y compilación nativa para Windows, Linux y macOS. |
-| Interfaz terminal | Bubble Tea v2 y Bubbles v2 para la TUI local. |
-| Gateway de prototipo | Wish v2 sobre SSH; permite una TUI remota, pero su proceso ve el contenido en claro. |
-| API y eventos | JSON sobre HTTPS y WebSocket seguro; sesiones Bearer de duración limitada. |
-| Persistencia | PostgreSQL 17.11 con pgx; transacciones para secuencia, membresía y reintentos. |
-| Respaldos propuestos | `pg_dump`, `age` y `rclone`; el almacenamiento remoto aún no está contratado ni ensayado. |
+| Client/server | Go 1.27.3; one shared module, native Windows/Linux/macOS builds |
+| Terminal UI | Bubble Tea v2 and Bubbles v2 |
+| Prototype gateway | Wish v2 over SSH; its process sees readable content |
+| API/events | JSON over HTTPS/WSS and short-lived Bearer sessions |
+| Storage | PostgreSQL 17.11 and pgx; transactional sequences, membership and retries |
+| Planned backups | `pg_dump`, `age`, `rclone`; remote storage has not been purchased or tested |
 
-Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consulta [fuentes y versiones](dependencies.md). El [ADR 0003](adr/0003-e2ee-1to1.md) elige Olm con secreto futuro y la biblioteca Rust vodozemac. `crypto/` ejecuta las operaciones Olm en el equipo; `pkg/secureclient` verifica identidades, persiste el ratchet y adapta el flujo a la TUI; `pkg/localstate` cifra el estado con Argon2id y XChaCha20-Poly1305. La prueba de integración intercambia mensajes reales entre dos clientes y comprueba que la base guarda sobres opacos.
+Go versions are pinned in `go.mod`/`go.sum`; see [dependencies](dependencies.md). [ADR 0003](adr/0003-e2ee-1to1.md) selects Olm and Rust vodozemac. `crypto/` performs local Olm operations; `pkg/secureclient` verifies identities, persists ratchets and adapts messages for the TUI; `pkg/localstate` encrypts state with Argon2id and XChaCha20-Poly1305. Integration tests exchange real messages and check opaque database envelopes.
 
-| Paquete | Responsabilidad actual |
+| Package | Responsibility |
 | --- | --- |
-| `internal/auth` | Registro, prueba de posesión de la clave, sesiones, recuperación y eliminación de cuenta. |
-| `internal/chat` | Solicitudes y aceptación de directos, membresías, mensajes, historial y bloqueo. |
-| `internal/e2ee` | Distribución experimental de identidades públicas y claves de un solo uso, solo entre miembros de un directo aceptado. |
-| `internal/transport` | Rutas HTTP/WSS, gateway SSH, límites de transporte y configuración TLS. |
-| `internal/storage` y `migrations` | Conexión PostgreSQL, migraciones y purga de datos vencidos. |
-| `internal/security` | Validación de entradas, identificadores aleatorios, hashes y límites de tasa. |
-| `pkg/protocol` | Tipos JSON compartidos entre servidor y cliente. |
+| `internal/auth` | Registration, key-possession proof, sessions, recovery, account deletion |
+| `internal/chat` | Direct requests/acceptance, membership, messages, history, blocking |
+| `internal/e2ee` | Public identities and one-time keys, restricted to accepted direct-chat members |
+| `internal/transport` | HTTP/WSS routes, prototype SSH, transport limits and TLS configuration |
+| `internal/storage`, `migrations` | PostgreSQL connection, migrations and expired-data purging |
+| `internal/security` | Input validation, random identifiers, hashes and rate limits |
+| `pkg/protocol` | Shared JSON contracts |
 
-## Identidad y acceso
+## Identity and access
 
-El registro de ensayo abierto recibe un seudónimo y una clave pública Ed25519. El cliente firma un desafío de dos minutos y un solo uso con su clave privada. El servidor guarda la clave pública, emite una sesión temporal y entrega un código de recuperación de 192 bits una sola vez; solo conserva su hash. El inicio de sesión repite la prueba de posesión. La recuperación exige el código y una firma con la clave nueva, revoca claves y sesiones anteriores y rota el código. También existe un modo de invitaciones para las pruebas del prototipo.
+Open registration takes a pseudonym and Ed25519 public key. The client signs a random, single-use, two-minute challenge. The server stores the public key, issues a temporary session and shows a 192-bit recovery code once; it stores only the code's hash. Login repeats possession proof. Recovery requires that code and a signature from the new SSH key, revokes previous keys/sessions and rotates the code. Invitation mode remains for prototype tests.
 
-Cada operación comprueba la sesión, la clave, el usuario y, cuando corresponde, la membresía. Para abrir un directo, una persona solicita conversar y la destinataria debe aceptar con una solicitud recíproca. Los bloqueos impiden nuevos mensajes y solicitudes. `--public-signup` rechaza canales y TUI SSH remota y escucha en loopback por defecto. `--public-network` permite escuchar fuera de loopback, en LAN o Internet, solo con TLS y ese modo cifrado. El [ensayo local/LAN](quickstart.md) genera certificados con SAN para la IP privada. El [procedimiento de despliegue](deploy.md) prepara la instalación; todavía no se ha ejecutado en un VPS.
+Each operation checks session, key, account and applicable membership. Direct chats require a reciprocal request from the recipient; blocks prevent messages and requests. `--public-signup` rejects channels and a remote SSH TUI, and defaults to loopback. `--public-network` permits non-loopback LAN/Internet listeners only with TLS and this encrypted mode. The [local/LAN guide](quickstart.md) creates IP-SAN certificates. The [future deployment procedure](deploy.md) has not been executed on a VPS.
 
-## Mensajes y tiempo real
+## Messages and real time
 
-PostgreSQL asigna la secuencia de cada conversación dentro de la transacción que inserta el mensaje. `client_id` permite reintentos idempotentes durante la retención; reutilizarlo con otro cuerpo produce conflicto. El ACK confirma persistencia, no lectura por la otra persona. El historial se pagina de 100 en 100 y el cliente puede reconectar desde la última secuencia recibida. WebSocket consulta el registro durable aproximadamente cada 250 ms y vuelve a verificar autorización en cada lote. No hay Redis ni cola de mensajes separada.
+PostgreSQL assigns each conversation's sequence inside the message-insert transaction. `client_id` supports idempotent retries during retention; reusing it with different content conflicts. ACK means persistence, not reading. History pages contain up to 100 messages. WSS reads the durable log roughly every 250 ms and rechecks authorization on each batch. No Redis or separate queue is needed.
 
-La base guarda el cuerpo en claro en el prototipo por invitación (`--legacy`). En `--public-signup`, el cliente oficial cifra localmente y la API guarda un sobre opaco; el servidor valida estructura y límites, pero no puede demostrar que un cliente modificado haya cifrado correctamente. La TUI exige verificar la huella del contacto fuera de Karatty antes de enviar o descifrar. La frase secreta local protege historial y estado del ratchet; perderla impide leer ese archivo. Al reemplazar la clave SSH, el cliente crea una identidad Olm nueva y comienza desde la secuencia actual; la otra persona debe verificar su huella nueva. Con la misma frase secreta local, el cliente migra el archivo de mensajes ya legibles al dispositivo nuevo y elimina el archivo cifrado anterior; los envíos anteriores sin ACK quedan marcados como inciertos para revisión. La recuperación de cuenta no permite descifrar mensajes anteriores que no estaban ya en el archivo local.
+The invitation prototype (`--legacy`) stores readable bodies. In `--public-signup`, the official client encrypts locally and the API stores an opaque envelope. The server validates structure/limits but cannot prove a modified client encrypted correctly. The TUI requires out-of-band contact verification before sending or decrypting.
 
-## Retención y operación
+A local passphrase protects history and ratchet state. Losing it prevents archive access. SSH-key recovery creates a new Olm identity and starts at the current server sequence; the contact must verify the new fingerprint. With the previous local passphrase, the client migrates already-readable history, saves the new device and removes the old state. Unacknowledged older sends become uncertain and are not automatically replayed. Recovery cannot decrypt older messages absent from the local archive.
 
-El historial oculta mensajes con más de 720 horas. La purga por lotes borra cuerpos e identificadores vencidos; en el modo de ensayo abierto se ejecuta al arrancar y cada hora. La deduplicación queda garantizada solo durante esos 30 días. El futuro plan de alojamiento en Internet usa PostgreSQL en un VPS pequeño y `pg_dump` cifrado con `age` hacia un bucket privado. La restauración se ha ensayado localmente, pero la copia y el vencimiento remotos siguen pendientes de prueba operativa. Consulta [operación](operations.md) y [seguridad](security.md).
+## Retention and operations
 
-## Límites de la primera alpha
+History hides messages older than 720 hours. Startup/hourly purging in open-registration mode removes expired bodies and identifiers, so deduplication lasts only 30 days. The future hosting plan uses a small VPS and `pg_dump` encrypted with `age` into a private bucket. Restoration has been tested locally; remote backup/expiry still need provider tests. See [operations](operations.md) and [security](security.md).
 
-La alpha tendrá cliente TUI instalable y chats directos 1:1 con aceptación. El registro será seudónimo y sin correo. Los canales, la TUI remota por SSH, varios dispositivos, adjuntos, búsqueda y notificaciones quedan fuera del alcance inicial. El [roadmap](roadmap.md) registra lo que se investigará después; no es una promesa de fecha.
+## Alpha scope
+
+Installed local TUI, accepted 1:1 chats, pseudonymous registration without email and one device per account. Channels, remote SSH TUI, multiple devices, attachments, search and notifications are outside this release. The [roadmap](roadmap.md) records future investigation without a promised date.

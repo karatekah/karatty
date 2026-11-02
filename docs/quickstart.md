@@ -1,16 +1,18 @@
-# Karatty en tu equipo o en una red local
+# Karatty on your machine or local network
 
-La alpha usa un servidor dentro de tu equipo o LAN, PostgreSQL y clientes TUI locales. No requiere dominio, VPS, correo ni acceso desde Internet. Ambos participantes deben poder alcanzar el mismo servidor. Cada cuenta utiliza un dispositivo.
+**English** · [Español](es/quickstart.md) · [Italiano](it/quickstart.md)
 
-Usa `--public-signup`: registro seudónimo sin correo, directos 1:1 y sobres E2EE. El nombre del flag no obliga a exponer el servidor en Internet. No uses `--legacy`, invitaciones, canales ni el gateway SSH para esta alpha.
+The alpha uses a server on your machine/LAN, PostgreSQL and local TUI clients. No domain, VPS, email or Internet exposure is required. Both participants must reach the same server. Each account uses one device.
 
-## 1. Compilar o instalar
+Use `--public-signup`: pseudonymous email-free registration, 1:1 chats and E2EE envelopes. The flag does not require publishing an Internet service. Do not use `--legacy`, invitations, channels or the SSH gateway for this alpha. The TUI currently displays Spanish prompts; the documentation language switch does not translate runtime messages.
 
-Para compilar necesitas Go 1.27.3, Rust 1.99.1 y OpenSSH. Solo el servidor necesita PostgreSQL 17.11, nativo o en Docker. Los clientes pueden usar los dos ejecutables de un [paquete verificado](install.md), sin Go, Rust ni PostgreSQL. El paquete del cliente no incluye el servidor.
+## 1. Build or install
 
-Obtén el código con `git clone https://github.com/karatekah/termlink.git` y entra con `cd termlink`. También puedes descargar el código de la etiqueta desde la Release.
+Building requires Go 1.27.3, Rust 1.99.1 and OpenSSH. Only the server needs PostgreSQL 17.11, native or Docker. Clients may use both executables from a [verified package](install.md) without installing Go, Rust or PostgreSQL. Client packages exclude the server.
 
-PowerShell, desde la raíz del repositorio:
+Clone with `git clone https://github.com/karatekah/karatty.git` and enter `cd karatty`. Alternatively download tagged source from the Release. The current module is `github.com/karatekah/karatty`; historical alpha.1 source retains its old module name but builds locally from its own consistent source.
+
+PowerShell from the repository root:
 
 ```powershell
 New-Item -ItemType Directory -Force bin,.local | Out-Null
@@ -20,7 +22,7 @@ cargo build --locked --release --manifest-path crypto/Cargo.toml
 Copy-Item crypto/target/release/karatty-crypto.exe bin/karatty-crypto.exe
 ```
 
-En Linux/macOS:
+Linux/macOS:
 
 ```sh
 mkdir -p bin .local
@@ -31,19 +33,19 @@ cargo build --locked --release --manifest-path crypto/Cargo.toml
 cp crypto/target/release/karatty-crypto bin/karatty-crypto
 ```
 
-Los ejemplos siguientes usan PowerShell. En Linux/macOS usa `export VARIABLE=valor` y ejecutables sin `.exe`; los flags y el flujo en la TUI son iguales.
+The remaining examples use PowerShell. On Linux/macOS use `export VARIABLE=value` and executables without `.exe`; flags/TUI commands are identical.
 
-## 2. Iniciar PostgreSQL
+## 2. Start PostgreSQL
 
-Si ya tienes PostgreSQL, crea una base dedicada y configura `DATABASE_URL`. No apuntes pruebas a producción. El servidor aplica migraciones al arrancar:
+With native PostgreSQL, create a dedicated database and set `DATABASE_URL`. Never test against production. The server applies migrations at startup:
 
 ```powershell
-$env:DATABASE_URL = 'postgres://USUARIO:CONTRASENA_CODIFICADA@127.0.0.1:5432/karatty?sslmode=disable'
+$env:DATABASE_URL = 'postgres://USER:URL_ENCODED_PASSWORD@127.0.0.1:5432/karatty?sslmode=disable'
 ```
 
-Codifica para URL los caracteres reservados de la contraseña. `sslmode=disable` solo corresponde aquí a PostgreSQL en el mismo equipo. Mantén credenciales fuera de Git y de capturas públicas.
+URL-encode reserved password characters. Here `sslmode=disable` applies only to a database on the same machine. Keep credentials out of Git and public captures.
 
-Como alternativa de desarrollo, Docker Compose crea la base `termlink` y publica PostgreSQL solo en loopback:
+Alternatively, development Compose creates the `termlink` database and exposes PostgreSQL only on loopback:
 
 ```powershell
 $env:TERMLINK_DB_PASSWORD = 'termlink-local-development-only'
@@ -51,37 +53,37 @@ docker compose -f deployments/compose.yml up -d db
 $env:DATABASE_URL = "postgres://termlink:$env:TERMLINK_DB_PASSWORD@127.0.0.1:5432/termlink?sslmode=disable"
 ```
 
-La contraseña es exclusivamente de ejemplo local. No inicies el perfil `app` de Compose: conserva el prototipo por invitaciones y SSH para sus pruebas.
+The password is a local-development example. Do not start Compose's `app` profile: it retains the invitation/SSH prototype for development tests.
 
-## 3. Elegir local o LAN e iniciar con TLS
+## 3. Choose local or LAN with TLS
 
-**Solo este equipo:**
+**This machine only:**
 
 ```powershell
 go run ./scripts/devcert.go
 ./bin/server.exe --addr 127.0.0.1:8443 --tls-cert .local/tls/server.crt --tls-key .local/tls/server.key --public-signup
 ```
 
-Ambos clientes usarán `https://127.0.0.1:8443` y `.local/tls/ca.crt`. Deja abierta la terminal del servidor.
+Both clients use `https://127.0.0.1:8443` and `.local/tls/ca.crt`. Keep the server terminal open.
 
-**Red local:** busca la IPv4 privada del servidor con `ipconfig` (Windows) o `ip addr` (Linux). Sustituye `192.168.1.50` en ambos comandos por esa IP:
+**LAN:** find the server's private IPv4 with `ipconfig` (Windows) or `ip addr` (Linux). Replace `192.168.1.50` in both commands with that address:
 
 ```powershell
 go run ./scripts/devcert.go --out .local/tls-lan --ip 192.168.1.50
 ./bin/server.exe --addr 192.168.1.50:8443 --tls-cert .local/tls-lan/server.crt --tls-key .local/tls-lan/server.key --public-signup --public-network
 ```
 
-`--public-network` permite escuchar fuera de loopback, también en LAN; exige TLS y el modo E2EE, sin `--dev`. Ambos clientes deben usar `https://192.168.1.50:8443`, incluso el instalado en el servidor. Elige una URL estable desde el primer registro: el estado cifrado se vincula a esa URL; cambiarla puede crear otra identidad local. Una reserva DHCP ayuda a conservar la IP.
+`--public-network` permits non-loopback listening, including LAN, and requires TLS/E2EE without `--dev`. Both clients use `https://192.168.1.50:8443`, including a client running on the server machine. Choose a stable URL before registering: encrypted state is bound to it; changing it can create a new local identity. A DHCP reservation helps keep the address.
 
-Entrega **solo `ca.crt`** a cada participante por un medio de confianza y compara su SHA-256 fuera de Karatty (`Get-FileHash RUTA/ca.crt -Algorithm SHA256` o `sha256sum RUTA/ca.crt`). El cliente confía en ella con `--ca-cert`, sin instalarla globalmente. `server.key` se queda en el servidor; cada cliente conserva su propia clave SSH y estado. No compartas carpetas de estado entre equipos.
+Give participants **only `ca.crt`** through a trusted channel and compare its SHA-256 outside Karatty (`Get-FileHash PATH/ca.crt -Algorithm SHA256` or `sha256sum PATH/ca.crt`). `--ca-cert` trusts it only for this client, without global installation. `server.key` stays on the server; each participant keeps a distinct SSH key/state. Never share state directories between machines.
 
-El firewall debe permitir TCP 8443 desde los clientes de la subred privada. Si necesitas una regla, limítala a esa subred y al perfil privado; no desactives el firewall. Las redes de invitados pueden aislar dispositivos. No abras PostgreSQL ni reenvíes puertos en el router. Desde otro equipo Windows comprueba alcance con `Test-NetConnection 192.168.1.50 -Port 8443`.
+The server firewall must allow TCP 8443 from clients in the private subnet. Limit any rule to that subnet/private profile; keep the firewall active. Guest networks may isolate devices. Do not expose PostgreSQL or forward router ports. Another Windows machine can check reachability with `Test-NetConnection 192.168.1.50 -Port 8443`.
 
-Los certificados caducan a los 30 días; la clave privada de la CA no se guarda. El generador rechaza sobrescribir certificados existentes. Para renovar o cambiar IP, usa otro `--out`, reinicia el servidor y redistribuye y comprueba la CA. Nunca desactives la validación TLS.
+Development certificates expire after 30 days; the CA private key is never saved. Existing certificates cannot be overwritten by the generator. To renew or change IP, use a new `--out`, restart with new files and redistribute/recheck the CA. Never disable TLS validation.
 
-## 4. Registrar dos personas
+## 4. Register two participants
 
-En otra terminal, Alice crea su clave dedicada y se registra:
+In another terminal, Alice generates a dedicated key and registers:
 
 ```powershell
 ssh-keygen -t ed25519 -f .local/alice
@@ -89,7 +91,7 @@ ssh-keygen -t ed25519 -f .local/alice
 ./bin/karatty.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/alice
 ```
 
-Bob usa otra terminal y otra clave:
+Bob uses another terminal/key:
 
 ```powershell
 ssh-keygen -t ed25519 -f .local/bob
@@ -97,40 +99,40 @@ ssh-keygen -t ed25519 -f .local/bob
 ./bin/karatty.exe chat --server https://127.0.0.1:8443 --ca-cert .local/tls/ca.crt --key .local/bob
 ```
 
-En LAN sustituye en **todos** los comandos `--server` y `--ca-cert` por la URL de LAN y la ruta a la CA recibida. Cada persona genera la clave en su equipo; no copia la de otra. Crea primero la carpeta para tu clave si no existe. Con un paquete extraído ejecuta `./karatty.exe` y conserva `karatty-crypto.exe` junto a él.
+For LAN, replace `--server` and `--ca-cert` in **every** command with the LAN URL and received CA path. Each person generates their key locally rather than copying a contact's key. Create the key's directory first if needed. With an extracted package, run `./karatty.exe` beside `karatty-crypto.exe`.
 
-Guarda fuera del equipo el código de recuperación mostrado una vez. Después elige y confirma una frase secreta local independiente de la frase de la clave SSH. El archivo se desbloquea cada vez que abres el chat. Las claves distintas separan el estado de Alice y Bob incluso en una misma máquina. `--state-dir RUTA_ABSOLUTA` permite elegir otro directorio; repítelo en cada comando si lo usas.
+Store the one-time-displayed recovery code outside the device. Choose/confirm a local passphrase independent of the SSH-key passphrase. Unlock the archive whenever opening chat. Separate keys isolate Alice/Bob state even on one machine. Optional `--state-dir ABSOLUTE_PATH` must be repeated consistently on each invocation.
 
-## 5. Aceptar, verificar y conversar
+## 5. Accept, verify and chat
 
-Dentro de ambas TUI:
+Inside both TUIs:
 
 ```text
 Alice: /direct bob
 Bob:   /requests
 Bob:   /direct alice
-Ambos: Ctrl+L para recargar; Tab para seleccionar el directo.
-Ambos: /myfingerprint
-       Comparten y comparan huellas por otro medio de confianza.
+Both: Ctrl+L to reload; Tab to select the direct chat.
+Both: /myfingerprint
+       Share and compare fingerprints through another trusted channel.
 Alice: /fingerprint bob
-Alice: /verify bob HUELLA_DE_BOB
+Alice: /verify bob BOB_FINGERPRINT
 Bob:   /fingerprint alice
-Bob:   /verify alice HUELLA_DE_ALICE
-Alice: Hola Bob
-Bob:   Hola Alice
+Bob:   /verify alice ALICE_FINGERPRINT
+Alice: Hello Bob
+Bob:   Hello Alice
 ```
 
-Comprueba que el otro cliente recibe texto legible y el emisor recibe ACK. Cierra ambos con Ctrl+C, ábrelos con las mismas claves, URL y frases, y comprueba el historial. El ACK indica persistencia, no lectura. `/pending` y `/retry ID` permiten revisar y reintentar envíos sin confirmar con el mismo sobre.
+Check readable delivery in the other client and ACK at the sender. Close both with Ctrl+C, reopen with the same keys, URL and passphrases, and check history. ACK means persistence, not reading. `/pending` and `/retry ID` inspect/retry unconfirmed sends with the same envelope.
 
-Para validar la LAN, repite el flujo en **dos equipos físicos**. Dos procesos del mismo equipo conectados a su IP privada no comprueban el firewall remoto ni el aislamiento Wi-Fi. Registra sistemas, terminales y resultado sin claves, códigos ni mensajes privados. Consulta las [pruebas y límites actuales](verification.md) y las [operaciones de recuperación y borrado](install.md).
+To validate LAN, repeat on **two physical machines**. Two processes on one host connected to its private IP do not prove remote firewall/Wi-Fi reachability. Record operating systems, terminals and results without private keys, codes or conversations. See [existing evidence](verification.md) and [recovery/deletion](install.md).
 
-## Detener y conservar datos
+## Stop and retain data
 
-Ctrl+C detiene clientes y servidor. `docker compose -f deployments/compose.yml stop db` detiene PostgreSQL si usaste Docker. Conserva base, claves y archivos de estado para volver a usar las cuentas. No uses `down -v` si quieres conservar la base.
+Ctrl+C stops clients/server. If using Docker, `docker compose -f deployments/compose.yml stop db` stops PostgreSQL. Keep the database, keys and encrypted state to reuse accounts. Do not use `down -v` if retaining the database.
 
-El modo E2EE oculta mensajes vencidos a las 720 horas y los purga al arrancar y cada hora. La deduplicación dura 30 días. El cliente solo limpia su archivo al usarse; no borra equipos apagados ni copias externas. Esta guía no configura respaldos automáticos: el administrador debe informar y comprobar la retención de sus copias. Las [herramientas de respaldo](operations.md) se configuran aparte.
+E2EE mode hides messages after 720 hours and purges at startup/hourly. Deduplication also lasts 30 days. Local cleanup runs only while the client is used; offline devices and external copies cannot be remotely erased. This guide sets up no automatic backups. Administrators must disclose/verify copy retention; [backup tools](operations.md) require separate configuration.
 
-## Comprobar el desarrollo
+## Check development
 
 ```powershell
 $env:TERMLINK_TEST_DATABASE_URL = $env:DATABASE_URL
@@ -138,4 +140,4 @@ $env:KARATTY_CRYPTO_BIN = (Resolve-Path bin/karatty-crypto.exe).Path
 ./scripts/check.ps1
 ```
 
-Las integraciones crean esquemas aleatorios y los eliminan al terminar; el rol necesita permiso para crearlos. Sin las variables se omiten las pruebas correspondientes. En Linux/macOS exporta las mismas variables y usa los [controles de contribución](../CONTRIBUTING.md). El alojamiento en Internet queda para la [guía prevista de despliegue](deploy.md).
+Integration tests create/delete random schemas; the role needs permission to create them. Missing variables skip the corresponding tests. On Linux/macOS export the same variables and follow [contribution checks](../CONTRIBUTING.md). Internet hosting is covered separately in the [future deployment plan](deploy.md).

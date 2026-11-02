@@ -1,16 +1,18 @@
-# Futuro alojamiento del servicio en Internet
+# Future Internet hosting
 
-Esta guía queda para una fase futura. La alpha local/LAN se instala con [quickstart.md](quickstart.md) y no necesita contratar estos recursos. Estado: procedimiento preparado; todavía no se ha ejecutado en un VPS ni existe un servicio público. Requiere comprar `karatty.dev`, acceso administrativo al VPS, un bucket privado y el contacto público del operador. No se deben anunciar registros en un servicio alojado por el proyecto hasta completar las pruebas de [operación](operations.md).
+**English** · [Español](es/deploy.md) · [Italiano](it/deploy.md)
 
-## Configuración prevista
+This procedure is future work. The [local/LAN alpha](quickstart.md) needs none of these purchases. No VPS deployment or project-hosted service exists. Hosting requires the selected `karatty.dev` domain, administrative VPS access, a private bucket and public operator contact. Do not announce hosted registration before [operational checks](operations.md).
 
-Una instancia de 1 vCPU y 2 GiB con Ubuntu 24.04 LTS, PostgreSQL 17 y el servidor Go en la misma máquina. Ubuntu 24.04 tiene [mantenimiento estándar hasta mayo de 2029](https://ubuntu.com/about/release-cycle). El cliente se conectará directamente por TLS a `https://chat.karatty.dev`; no se usa un proxy que oculte la dirección del cliente a los límites de tasa. El gateway SSH de mensajería no se instala. SSH administrativo del VPS se limita a las claves del operador.
+## Planned configuration
 
-En DNS, crear el registro A de `chat.karatty.dev` hacia la IPv4 del VPS, sin proxy. No publicar AAAA hasta configurar y probar la escucha y el firewall IPv6. Abrir 443/TCP para la API y 80/TCP para los desafíos HTTP de Certbot; restringir 22/TCP al acceso administrativo. PostgreSQL debe escuchar solo en loopback y usar autenticación SCRAM, sin puerto público.
+A 1-vCPU/2-GiB Ubuntu 24.04 LTS instance runs PostgreSQL 17 and Go on one machine. Ubuntu 24.04 has [standard maintenance through May 2029](https://ubuntu.com/about/release-cycle). Clients connect directly by TLS to `https://chat.karatty.dev`, without a proxy hiding client IPs from rate limiting. Do not install the messaging SSH gateway. Administrative SSH is restricted to operator keys.
 
-## Base y usuario de servicio
+Create an unproxied DNS A record for `chat.karatty.dev`. Publish AAAA only after testing IPv6 listening/firewall. Allow TCP 443 for API and 80 for Certbot HTTP challenges; restrict TCP 22 for administration. PostgreSQL must use loopback/SCRAM without a public port.
 
-Instalar PostgreSQL 17 y sus herramientas siguiendo el [repositorio oficial de PostgreSQL para Ubuntu](https://www.postgresql.org/download/linux/ubuntu/). Comprobar `postgres --version` y `pg_dump --version`; usar la misma versión mayor para copia y restauración. Crear el rol `karatty` sin privilegios de superusuario ni creación de roles, y una base `karatty` de su propiedad. Asignar su contraseña mediante `\password karatty` en `psql`, sin escribirla en el historial del shell. El rol necesita crear las tablas y migraciones dentro de su propia base.
+## Database and service account
+
+Install PostgreSQL 17/tools from the [official Ubuntu repository](https://www.postgresql.org/download/linux/ubuntu/). Check `postgres --version`/`pg_dump --version` and use matching major versions for backup/restore. Create a non-superuser `karatty` role without role-creation privileges and its owned `karatty` database. Set its password through `\password karatty` in psql rather than shell history. It needs schema/migration creation permissions inside its own database.
 
 ```sh
 sudo useradd --system --home /var/lib/karatty --shell /usr/sbin/nologin karatty
@@ -20,17 +22,17 @@ sudoedit /etc/karatty/server.env
 sudo chmod 600 /etc/karatty/server.env
 ```
 
-El archivo de entorno contiene una sola variable, con la contraseña codificada para URL cuando tenga caracteres reservados:
+The environment file contains one variable; URL-encode reserved password characters:
 
 ```dotenv
-DATABASE_URL=postgres://karatty:CONTRASENA_CODIFICADA@127.0.0.1:5432/karatty?sslmode=disable
+DATABASE_URL=postgres://karatty:URL_ENCODED_PASSWORD@127.0.0.1:5432/karatty?sslmode=disable
 ```
 
-`sslmode=disable` se limita a la conexión local al mismo VPS. No copiar este valor a una base remota. No incluir archivos de entorno ni certificados privados en Git.
+`sslmode=disable` is only for the database on that same VPS, not a remote database. Keep environment files/private certificates out of Git.
 
-## Binario y TLS
+## Binary and TLS
 
-Desde el commit candidato con CI verde, usar Go 1.27.3 para construir `go build -trimpath -o bin/karatty-server ./cmd/server`. Instalar el binario y la unidad incluidos en este repositorio:
+From a CI-verified commit with Go 1.27.3, build `go build -trimpath -o bin/karatty-server ./cmd/server`. Install it and the supplied unit/hook:
 
 ```sh
 sudo install -m 0755 bin/karatty-server /opt/karatty/server
@@ -39,7 +41,7 @@ sudo install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
 sudo install -m 0755 deployments/renew-certificate.sh /etc/letsencrypt/renewal-hooks/deploy/karatty
 ```
 
-Instalar Certbot y emitir un certificado para `chat.karatty.dev` con el método standalone, después de comprobar DNS y el puerto 80. El hook copia certificado y clave con permisos `root:karatty 0640`; solo actúa sobre ese nombre. Si es la primera emisión y el hook no se ejecutó, invocarlo con `RENEWED_DOMAINS=chat.karatty.dev` y `RENEWED_LINEAGE` apuntando al directorio que Certbot acaba de crear. Ensayar la renovación de Certbot antes de continuar. El reinicio renueva el certificado en memoria del servidor y los clientes reconectan desde su secuencia.
+Install Certbot and issue a standalone certificate for `chat.karatty.dev` after checking DNS/port 80. The deploy hook copies cert/key with `root:karatty 0640` and acts only on this domain. If the first issuance did not run it, invoke with `RENEWED_DOMAINS=chat.karatty.dev` and `RENEWED_LINEAGE` set to Certbot's new directory. Test renewal before proceeding. Restart reloads the certificate in memory; clients reconnect from their sequence.
 
 ```sh
 sudo systemctl daemon-reload
@@ -48,19 +50,19 @@ sudo systemctl status karatty.service
 curl --fail https://chat.karatty.dev/healthz
 ```
 
-La unidad exige `--public-signup --public-network`, certificado y clave TLS. Ese modo rechaza canales, sobres de texto legible y TUI SSH remota; también activa la purga de mensajes al arrancar y cada hora. El servidor conserva los metadatos necesarios para entregar mensajes. La estructura del sobre no demuestra que un cliente modificado haya cifrado correctamente; las pruebas se refieren al cliente oficial.
+The unit requires `--public-signup --public-network` plus TLS cert/key. It rejects channels, plaintext-shaped messages and a remote SSH TUI, and activates startup/hourly purging. Delivery metadata remain visible. Envelope structure cannot prove a modified client encrypted correctly; tests refer to the official client.
 
-## Copias y restauración
+## Backup and restore
 
-Instalar `age`, `rclone` y `pg_dump`. Configurar un bucket R2 privado dedicado y una credencial limitada a ese bucket. Guardar el archivo `rclone.conf` en `/etc/karatty/rclone.conf` con propietario `root:karatty` y permisos 0640. En `/etc/karatty/backup.env` (0600, leído por systemd), definir:
+Install `age`, `rclone`, `pg_dump`. Create a dedicated private R2 bucket and bucket-scoped credential. Store `rclone.conf` at `/etc/karatty/rclone.conf`, `root:karatty 0640`. Configure `/etc/karatty/backup.env` (0600, read by systemd):
 
 ```dotenv
-BACKUP_RECIPIENT=age1RECEPTOR_PUBLICO
-BACKUP_REMOTE=r2:BUCKET_PRIVADO/db-backups
+BACKUP_RECIPIENT=age1PUBLIC_RECIPIENT
+BACKUP_REMOTE=r2:PRIVATE_BUCKET/db-backups
 RCLONE_CONFIG=/etc/karatty/rclone.conf
 ```
 
-La identidad privada `age` se guarda fuera del VPS. Instalar el script y las unidades:
+Keep the private `age` identity outside the VPS. Install scripts/units:
 
 ```sh
 sudo install -m 0755 scripts/backup.sh /opt/karatty/backup.sh
@@ -71,8 +73,8 @@ sudo systemctl enable --now karatty-backup.timer
 sudo systemctl list-timers karatty-backup.timer
 ```
 
-Aplicar también la regla de expiración remota a tres días y comprobar el borrado real, como explica [operación](operations.md). Restaurar una copia mediante `scripts/restore-check.sh` en una base vacía de nombre `termlink_restore_…`, en un equipo con la identidad privada. Verificar el contenido cifrado, las migraciones, el registro y la autorización después de restaurar. No probar una restauración encima de la base activa.
+Apply three-day remote expiry and verify actual removal under [operations](operations.md). Use `scripts/restore-check.sh` on a machine holding the private identity, restoring only into an empty `termlink_restore_…` database. Check ciphertext, migrations, registration and authorization afterward. Never restore over the active database.
 
-## Antes de anunciar
+## Before announcing hosting
 
-Desde otra red, instalar cada paquete descargado y probar dos cuentas nuevas: registro, códigos guardados fuera del equipo, aceptación, comparación de huellas, envío en ambas direcciones, desconexión, reinicio, bloqueo, recuperación y borrado. Comprobar que la API y la base reciben sobres cifrados, que los mensajes vencidos no aparecen y que se borran sus filas. Probar una copia, su restauración y la eliminación remota de objetos caducados. Completar identidad, contacto y política del operador; registrar fecha y resultado de cada comprobación en la guía de publicación.
+From another network, install each package and try two fresh accounts: offline recovery codes, acceptance, independent fingerprint comparison, bidirectional exchange, disconnect/restart, blocking, recovery and deletion. Confirm opaque API/database envelopes, hidden expired messages and physical row removal. Test backup/restore and remote expired-object deletion. Complete operator identity/contact/policies and record dated results under [release](release.md).
