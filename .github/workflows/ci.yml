@@ -34,7 +34,10 @@ jobs:
       - run: go test -count=1 ./pkg/cryptobridge
         env:
           KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
-      - run: go test -count=1 ./tests -run '^TestE2EEClient' -v
+      - run: go test -count=1 ./tests -run '^TestE2EEClientExchangeAndLocalPassphrase$' -v
+        env:
+          KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
+      - run: go test -count=5 ./tests -run '^TestE2EEClientNativeTUI$' -v
         env:
           KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
   test:
