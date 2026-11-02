@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -49,8 +48,12 @@ func run() error {
 	revokeMember := flag.String("revoke-member", "", "admin: user ID")
 	retention30d := flag.Bool("retention-30d", false, "purge messages older than 30 days at startup and hourly")
 	publicSignup := flag.Bool("public-signup", false, "allow pseudonymous SSH-key registration without email")
+	publicNetwork := flag.Bool("public-network", false, "allow the E2EE alpha API on a public TLS listener")
 	purgeExpired := flag.Bool("purge-expired-messages", false, "admin: purge messages older than 30 days once")
 	flag.Parse()
+	if err := validatePublicMode(*addr, *cert, *key, *hostKey, *publicSignup, *publicNetwork, *dev); err != nil {
+		return err
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	db, err := storage.Open(ctx, os.Getenv("DATABASE_URL"))
@@ -60,19 +63,6 @@ func run() error {
 	defer db.Close()
 	if err = storage.Migrate(ctx, db); err != nil {
 		return err
-	}
-	if *publicSignup && *hostKey != "" {
-		return security.ErrInvalid
-	}
-	if *publicSignup {
-		host, _, splitErr := net.SplitHostPort(*addr)
-		if splitErr != nil {
-			return splitErr
-		}
-		ip := net.ParseIP(host)
-		if ip == nil || !ip.IsLoopback() {
-			return errors.New("public signup is local-only until E2EE is implemented")
-		}
 	}
 	a := &auth.Service{DB: db, PublicSignup: *publicSignup}
 	c := chat.New(db)
