@@ -1,6 +1,6 @@
 # Operación propuesta para la alpha pública
 
-Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El dominio y un correo público para soporte y privacidad deben fijarse antes de ejecutar el despliegue. Las cuentas no requieren correo.
+Esta guía prepara el despliegue; no hay infraestructura contratada ni respaldos remotos activos. El usuario eligió `karatty.dev`, pero todavía no se ha comprado ni confirmado en el registrador. Falta un correo público para soporte y privacidad; el usuario indicó que aún no tiene esos buzones. Las cuentas no requieren correo.
 
 Nombre de trabajo: **Karatty**. El 1 de noviembre de 2026, el buscador oficial [Busca tu marca](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró **0 resultados en búsqueda precisa** de marcas vigentes para «Karatty» en las clases 9, 38 y 42. La búsqueda amplia devolvió 200 resultados. Esta consulta es preliminar; falta revisar posibles similitudes relevantes y confirmar dominio y marca antes de publicar.
 
@@ -24,7 +24,7 @@ Ensayo local del 31 de octubre de 2026: `backup.sh` cifró y subió una copia al
 
 ## Puertas de publicación
 
-1. Elegir nombre y comprobar marca/dominio; contratar el `.dev` y preparar correo público de soporte y privacidad.
+1. Confirmar la disponibilidad y el precio de `karatty.dev` en el registrador, comprarlo, cerrar la revisión de marca y preparar correo público de soporte y privacidad.
 2. Implementar y revisar E2EE para los directos 1:1 en la TUI local. Impedir mensajes en claro, canales y TUI SSH remota en el servicio público. Verificar las claves de los contactos y ensayar pérdida/rotación de claves.
 3. Crear VPS y bucket privados, configurar DNS, TLS y acceso administrativo. Mantener credenciales fuera del repositorio.
 4. Completar y revisar el [borrador de privacidad](privacy-draft.md), publicar política y condiciones con identidad y contacto del titular, retención de mensajes de 30 días y ventana de respaldos; completar las gestiones de datos personales aplicables en Perú.
