@@ -66,6 +66,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -98,6 +100,32 @@ jobs:
           if ($outer.Count -ne 1 -or $outer[0] -notmatch '^([a-f0-9]{64})  (karatty-v0\.1\.0-alpha\.1-[^/\\]+\.(?:zip|tar\.gz))$') { throw 'invalid archive checksum' }
           $actual = (Get-FileHash (Join-Path $release $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $Matches[1]) { throw 'archive checksum mismatch' }
+          $archive = Join-Path $release $Matches[2]
+          $extracted = '.local/package-check'
+          New-Item -ItemType Directory -Path $extracted -Force | Out-Null
+          if ($targetOS -eq 'windows') {
+            Expand-Archive -LiteralPath $archive -DestinationPath $extracted
+          } else {
+            & tar -xzf $archive -C $extracted
+            if ($LASTEXITCODE -ne 0) { throw 'cannot extract release' }
+          }
+          $installed = Join-Path $extracted $bundle
+          if ((& (Join-Path $installed "karatty$ext") version) -ne 'Karatty v0.1.0-alpha.1') { throw 'extracted client failed' }
+          foreach ($name in @('LICENSE','THIRD_PARTY_NOTICES.md','BUILD_INFO','dependency-locks/Cargo.lock')) {
+            if (!(Test-Path (Join-Path $installed $name))) { throw "missing release file: $name" }
+          }
+          if (@(Get-ChildItem (Join-Path $installed 'licenses') -Directory).Count -lt 50) { throw 'dependency licenses missing' }
+          $env:KARATTY_CRYPTO_BIN = (Resolve-Path (Join-Path $installed "karatty-crypto$ext")).Path
+          & go test -count=1 ./pkg/cryptobridge
+          if ($LASTEXITCODE -ne 0) { throw 'extracted crypto bridge failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: karatty-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/v0.1.0-alpha.1/*.zip
+            dist/v0.1.0-alpha.1/*.tar.gz
+            dist/v0.1.0-alpha.1/SHA256SUMS
+          if-no-files-found: error
   docker:
     runs-on: ubuntu-latest
     steps:
