@@ -6,9 +6,9 @@ Estado: prototipo previo a la alpha pública. Este documento describe el código
 
 ```mermaid
 flowchart LR
-    TUI[Cliente TUI local] --> OLM[Olm local en Rust]
+    TUI[Cliente TUI local] <-->|pipes locales| OLM[Olm local en Rust]
     TUI --> STATE[Archivo local cifrado con frase secreta]
-    OLM -->|sobres por HTTPS y WSS| API[API Go]
+    TUI -->|sobres por HTTPS y WSS| API[API Go]
     SSH[Gateway SSH del prototipo] --> CORE[Núcleo Go]
     API --> CORE
     CORE --> PG[(PostgreSQL)]
@@ -44,7 +44,7 @@ Las versiones de dependencias de Go están fijadas en `go.mod` y `go.sum`; consu
 
 El registro de ensayo abierto recibe un seudónimo y una clave pública Ed25519. El cliente firma un desafío de dos minutos y un solo uso con su clave privada. El servidor guarda la clave pública, emite una sesión temporal y entrega un código de recuperación de 192 bits una sola vez; solo conserva su hash. El inicio de sesión repite la prueba de posesión. La recuperación exige el código y una firma con la clave nueva, revoca claves y sesiones anteriores y rota el código. También existe un modo de invitaciones para las pruebas del prototipo.
 
-Cada operación comprueba la sesión, la clave, el usuario y, cuando corresponde, la membresía. Para abrir un directo, una persona solicita conversar y la destinataria debe aceptar con una solicitud recíproca. Los bloqueos impiden nuevos mensajes y solicitudes. En el modo `--public-signup`, el proceso del servidor solo escucha en loopback, no inicia la TUI SSH y rechaza los canales. Este bloqueo seguirá hasta que E2EE esté implementado y probado.
+Cada operación comprueba la sesión, la clave, el usuario y, cuando corresponde, la membresía. Para abrir un directo, una persona solicita conversar y la destinataria debe aceptar con una solicitud recíproca. Los bloqueos impiden nuevos mensajes y solicitudes. `--public-signup` rechaza canales y TUI SSH remota y escucha en loopback por defecto. `--public-network` permite un listener público solo con TLS y ese modo cifrado. El [procedimiento de despliegue](deploy.md) prepara la instalación; todavía no se ha ejecutado en un VPS.
 
 ## Mensajes y tiempo real
 

@@ -25,8 +25,8 @@ No vendemos datos personales ni usamos el contenido de mensajes para publicidad 
 ## Conservación y borrado
 
 - Los mensajes dejan de estar disponibles en el historial a las **720 horas (30 días)** de su creación. La purga física de la base activa se ejecuta al arrancar y cada hora en modo público; puede haber un breve desfase operativo tras el límite de acceso.
-- Las solicitudes de chat directo vencen a los **7 días**. Los desafíos de autenticación y recuperación vencen a los **2 minutos**. Las sesiones temporales vencen a las **8 horas**; sus registros caducados se limpiarán automáticamente antes de publicar esta política.
-- El usuario puede borrar su cuenta desde el cliente. La operación borra sus claves SSH y públicas de E2EE, sesiones, membresías y mensajes que escribió de la base activa. Los mensajes escritos por otras personas se conservan hasta su propio vencimiento; los chats directos afectados quedan en solo lectura para ellas.
+- Las solicitudes de chat directo vencen a los **7 días**. Los desafíos de autenticación y recuperación vencen a los **2 minutos**. Las sesiones temporales vencen a las **8 horas**; el ciclo de mantenimiento limpia los registros vencidos y las sesiones revocadas.
+- El usuario puede borrar su cuenta desde el cliente. La operación borra sus claves SSH y públicas de E2EE, sesiones, membresías y mensajes que escribió de la base activa y retira los archivos locales de la cuenta en el directorio configurado de este equipo. No borra copias ajenas ni otros equipos a distancia. Los mensajes escritos por otras personas se conservan hasta su propio vencimiento; los chats directos afectados quedan en solo lectura para ellas.
 - Los respaldos completos se cifran antes de subirlos. La operación propuesta los elimina a los **3 días** y configura el mismo plazo en el proveedor. Un mensaje ya vencido o una cuenta borrada pueden permanecer en un respaldo por un período adicional, con un máximo público previsto de **7 días**. Este máximo debe verificarse contra el borrado real del proveedor antes de publicar esta política.
 
 ## Tus opciones y derechos
@@ -35,8 +35,10 @@ Puedes rechazar solicitudes de chat directo, bloquear usuarios y borrar tu cuent
 
 ## Seguridad y cambios
 
-Protegemos el acceso con claves SSH y un código de recuperación que se muestra una sola vez. Conserva tu clave privada y ese código fuera del alcance de terceros. Si pierdes ambos, el flujo automático no puede recuperar tu cuenta. Publicaremos los cambios materiales de esta política en `[URL PÚBLICA]` antes de que entren en vigor. La recuperación mediante código reemplaza la clave SSH; antes del lanzamiento se deberá aclarar cómo afecta esto a la lectura de mensajes E2EE anteriores.
+Protegemos el acceso con claves SSH y un código de recuperación que se muestra una sola vez. Conserva tu clave privada y ese código fuera del alcance de terceros. Si pierdes ambos, el flujo automático no puede recuperar tu cuenta. Publicaremos los cambios materiales de esta política en `[URL PÚBLICA]` antes de que entren en vigor. La recuperación mediante código reemplaza la clave SSH y la identidad Olm; solo puede conservar el historial ya legible si el archivo local sigue disponible y se conoce su frase secreta. Los contactos deben verificar la identidad nueva.
 
 ## Revisión previa a publicación
 
 La [ANPD indica que los titulares de bancos de datos personales, incluidas personas naturales, deben inscribirlos](https://www.gob.pe/institucion/anpd/pages/8060-inscribir-banco-de-datos-en-el-registro-nacional-de-proteccion-de-datos-personales). La [comunicación de flujos transfronterizos](https://www.gob.pe/9253-inscribir-flujo-transfronterizo-de-datos-personales) también debe revisarse al confirmar las ubicaciones de infraestructura. Estas gestiones corresponden al titular y requieren sus datos personales; este borrador no afirma que ya se hayan completado.
+
+La revisión debe considerar el [Reglamento aprobado por el Decreto Supremo 016-2024-JUS](https://www.gob.pe/institucion/anpd/normas-legales/6554453-16-2024-jus), vigente desde el 31 de marzo de 2025 según la información oficial de la ANPD. La consulta de estas fuentes no constituye una validación jurídica ni una inscripción realizada.
