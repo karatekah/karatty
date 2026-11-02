@@ -66,12 +66,12 @@ func run() error {
 		return err
 	}
 	switch command {
-	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending", "uncertain":
+	case "chat", "register", "recover", "login", "list", "history", "send", "direct", "requests", "decline", "block", "unblock", "metrics", "delete-account", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending", "uncertain", "pending", "retry-pending":
 	case "version":
 		fmt.Println("Karatty " + version)
 		return nil
 	default:
-		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, reverify, discard-pending, uncertain, metrics, delete-account, version")
+		return errors.New("commands: chat, register, recover, login, list, history, send, direct, requests, decline, block, unblock, my-fingerprint, fingerprint, verify, reverify, discard-pending, pending, retry-pending, uncertain, metrics, delete-account, version")
 	}
 	if *keyPath == "" {
 		return errors.New("provide --key with an Ed25519 private key path")
@@ -185,14 +185,14 @@ func run() error {
 		defer stop()
 		_ = c.Logout(end)
 	}()
-	if session.PublicMode && *legacy && (command == "chat" || command == "history" || command == "send") {
+	if session.PublicMode && *legacy && encryptedCommand(command) {
 		return errors.New("plaintext legacy commands are unavailable in public mode")
 	}
-	if !session.PublicMode && !*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending" || command == "uncertain") {
+	if !session.PublicMode && !*legacy && encryptedCommand(command) {
 		return errors.New("this server uses the invitation prototype; use --legacy for its local plaintext client")
 	}
 	var secure *secureclient.Backend
-	if (command == "register" && *public) || (!*legacy && (command == "chat" || command == "history" || command == "send" || command == "my-fingerprint" || command == "fingerprint" || command == "verify" || command == "reverify" || command == "discard-pending" || command == "uncertain")) {
+	if (command == "register" && *public) || (!*legacy && encryptedCommand(command)) {
 		if command == "register" {
 			fmt.Printf("Identidad creada: %s. Guarda este código de recuperación fuera del equipo; se muestra una sola vez: %s\n", session.UserID, session.RecoveryCode)
 		}
@@ -334,6 +334,25 @@ func run() error {
 			return errors.New("uncertain requires the local encrypted client")
 		}
 		return json.NewEncoder(os.Stdout).Encode(secure.Secure.Uncertain())
+	case "pending":
+		if secure == nil {
+			return errors.New("pending requires the local encrypted client")
+		}
+		return json.NewEncoder(os.Stdout).Encode(secure.Secure.Pending())
+	case "retry-pending":
+		if secure == nil || *conv == "" || *id == "" {
+			return errors.New("retry-pending requires --conversation and --id")
+		}
+		for _, item := range secure.Secure.Pending() {
+			if item.ConversationID == *conv && item.ClientID == *id {
+				out, e := secure.Send(ctx, *conv, protocol.Send{ClientID: item.ClientID, Body: item.Body})
+				if e != nil {
+					return e
+				}
+				return json.NewEncoder(os.Stdout).Encode(out)
+			}
+		}
+		return errors.New("pending message not found")
 	case "decline", "block", "unblock":
 		if *peer == "" {
 			return errors.New("provide --peer with the other username")
@@ -400,6 +419,14 @@ func run() error {
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 	return nil
+}
+
+func encryptedCommand(command string) bool {
+	switch command {
+	case "chat", "history", "send", "my-fingerprint", "fingerprint", "verify", "reverify", "discard-pending", "uncertain", "pending", "retry-pending":
+		return true
+	}
+	return false
 }
 
 func clear(b []byte) {

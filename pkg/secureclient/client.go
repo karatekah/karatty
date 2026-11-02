@@ -336,6 +336,18 @@ func (c *Client) Uncertain() []UncertainMessage {
 	}
 	return out
 }
+func (c *Client) Pending() []UncertainMessage {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]UncertainMessage, 0, len(c.state.Outbox))
+	for _, item := range c.state.Outbox {
+		if item.CreatedAt.After(time.Now().Add(-720 * time.Hour)) {
+			out = append(out, UncertainMessage{ConversationID: item.ConversationID, ClientID: item.ClientID, Body: item.Body, CreatedAt: item.CreatedAt})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out
+}
 func (c *Client) Close() error { return c.store.Close() }
 
 // A newly created device cannot decrypt messages addressed to an older device.

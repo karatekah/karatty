@@ -105,6 +105,15 @@ func (b *Backend) Verify(ctx context.Context, peer, fingerprint string) error {
 	return b.Secure.Verify(ctx, peer, fingerprint)
 }
 func (b *Backend) SelfFingerprint() string { return b.Secure.SelfFingerprint() }
+func (b *Backend) Pending(conv string) []protocol.Send {
+	var out []protocol.Send
+	for _, message := range b.Secure.Pending() {
+		if message.ConversationID == conv {
+			out = append(out, protocol.Send{ClientID: message.ClientID, Body: message.Body})
+		}
+	}
+	return out
+}
 func (b *Backend) Reverify(ctx context.Context, peer, fingerprint string) error {
 	conv, err := b.directID(ctx, peer)
 	if err != nil {

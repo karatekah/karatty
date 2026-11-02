@@ -52,6 +52,9 @@ type identityBackend interface {
 	Reverify(context.Context, string, string) error
 	DiscardPending(context.Context, string) (int, error)
 }
+type pendingBackend interface {
+	Pending(string) []protocol.Send
+}
 type Model struct {
 	ctx           context.Context
 	backend       client.Backend
@@ -125,6 +128,42 @@ func (m *Model) directCommand() tea.Cmd {
 		return nil
 	}
 	action := args[0]
+	if action == "/pending" || action == "/retry" {
+		pending, ok := m.backend.(pendingBackend)
+		if !ok || len(m.rooms) == 0 {
+			m.status = "Abre un directo en la TUI local cifrada para revisar envíos pendientes."
+			return nil
+		}
+		items := pending.Pending(m.rooms[m.selected].ID)
+		if action == "/pending" && len(args) == 1 {
+			lines := []string{"Envíos guardados sin confirmar:"}
+			for _, item := range items {
+				lines = append(lines, security.Display(item.ClientID)+"  "+security.Display(item.Body))
+			}
+			if len(items) == 0 {
+				lines = append(lines, "No hay envíos pendientes en este directo.")
+			}
+			lines = append(lines, "", "Usa /retry ID para reenviar el mismo sobre.")
+			m.identityView = strings.Join(lines, "\n")
+			m.input.Reset()
+			m.renderMessages()
+			m.status = "La entrega puede haberse completado aunque se perdiera el ACK."
+			return nil
+		}
+		if action == "/retry" && len(args) == 2 && !m.rooms[m.selected].Closed {
+			for _, item := range items {
+				if item.ClientID == args[1] {
+					m.pending = &item
+					m.input.SetValue(item.Body)
+					m.identityView = ""
+					m.requestView = false
+					return m.send()
+				}
+			}
+		}
+		m.status = "Usa /pending y /retry ID en un directo abierto."
+		return nil
+	}
 	if action == "/myfingerprint" && len(args) == 1 {
 		secure, ok := m.backend.(identityBackend)
 		if !ok {
@@ -278,7 +317,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.busy = false
 		if v.err != nil {
-			m.status = "Sin confirmar. Ctrl+R reintenta el mismo mensaje; Esc cancela."
+			m.status = security.Display(v.err.Error()) + " · Ctrl+R reintenta; Esc permite editar."
 			return m, nil
 		}
 		m.pending = nil
@@ -355,7 +394,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			if !m.busy {
 				m.pending = nil
-				m.status = "Edición del mensaje"
+				m.status = "Edición. /pending muestra los envíos guardados sin confirmar."
 			}
 			return m, nil
 		case "ctrl+r":
