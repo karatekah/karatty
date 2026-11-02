@@ -8,6 +8,8 @@ Usa `--public-signup`: registro seudónimo sin correo, directos 1:1 y sobres E2E
 
 Para compilar necesitas Go 1.27.3, Rust 1.99.1 y OpenSSH. Solo el servidor necesita PostgreSQL 17.11, nativo o en Docker. Los clientes pueden usar los dos ejecutables de un [paquete verificado](install.md), sin Go, Rust ni PostgreSQL. El paquete del cliente no incluye el servidor.
 
+Obtén el código con `git clone https://github.com/karatekah/termlink.git` y entra con `cd termlink`. También puedes descargar el código de la etiqueta desde la Release.
+
 PowerShell, desde la raíz del repositorio:
 
 ```powershell

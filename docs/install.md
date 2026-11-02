@@ -1,26 +1,36 @@
 # Instalar y usar Karatty alpha
 
-La primera alpha está orientada a uso local o en LAN con un servidor administrado por ti. No hay servicio del proyecto en Internet; dominio y VPS quedan para el futuro. Las descargas públicas siguen en borrador. Para iniciar el servidor y probar dos cuentas, sigue la [guía local y LAN](quickstart.md).
+La primera alpha está orientada a uso local con un servidor administrado por ti. No hay servicio del proyecto en Internet; dominio y VPS quedan para el futuro. Descarga los paquetes de [v0.1.0-alpha.1](https://github.com/karatekah/termlink/releases/tag/v0.1.0-alpha.1). Para iniciar el servidor y probar dos cuentas, sigue la [guía local y LAN](quickstart.md). La LAN entre dos equipos físicos sigue sin comprobarse.
 
 Los comandos de esta página usan un servidor en el mismo equipo. Para LAN, sustituye **en todos los comandos** la URL por la IP privada del servidor y `RUTA_CA` por la ruta a `ca.crt`, recibido y comprobado con su administrador. Usa siempre la misma URL para conservar la identidad local. Los clientes no necesitan PostgreSQL.
 
 ## Descargar y verificar
 
-La Release incluirá un archivo por plataforma probada. El nombre indica versión, sistema y arquitectura. Windows usa `.zip`; Linux y macOS, `.tar.gz`. Descarga también `SHA256SUMS` de la misma versión y compara el hash antes de extraer:
+La Release incluye estos paquetes del cliente; el servidor se compila desde el código según la guía local. Otras arquitecturas no tienen descarga precompilada en esta versión.
+
+| Plataforma | Archivo |
+| --- | --- |
+| Windows x64 | `karatty-v0.1.0-alpha.1-windows-amd64.zip` |
+| Linux x64 | `karatty-v0.1.0-alpha.1-linux-amd64.tar.gz` |
+| macOS Apple Silicon | `karatty-v0.1.0-alpha.1-darwin-arm64.tar.gz` |
+
+Descarga también `SHA256SUMS` de la misma versión y compara el hash antes de extraer:
 
 ```powershell
 # Windows: compara el resultado con la línea del archivo descargado.
-Get-FileHash .\karatty-VERSION-windows-amd64.zip -Algorithm SHA256
+Get-FileHash .\karatty-v0.1.0-alpha.1-windows-amd64.zip -Algorithm SHA256
 ```
 
 ```sh
 # Linux
 sha256sum -c SHA256SUMS --ignore-missing
 # macOS: compara el resultado con SHA256SUMS.
-shasum -a 256 karatty-VERSION-darwin-ARQUITECTURA.tar.gz
+shasum -a 256 karatty-v0.1.0-alpha.1-darwin-arm64.tar.gz
 ```
 
 Extrae el paquete en una carpeta propia y conserva juntos `karatty` y `karatty-crypto` (con `.exe` en Windows). Puedes añadir esa carpeta a tu PATH. La descarga incluye sus licencias, las dependencias fijadas y `BUILD_INFO` con el commit de origen. Los paquetes alpha no están firmados ni notarizados; los hashes comprueban integridad respecto del manifiesto publicado, no autentican por sí solos al autor.
+
+Windows Defender bloqueó una compilación del servidor durante el ensayo. Su propietario la restauró y después pasaron las pruebas locales con las protecciones activas. La clasificación no se ha confirmado errónea. Si tu antivirus bloquea un archivo, conserva la alerta y revisa su procedencia; no desactives la protección para instalar. El [registro del ensayo](verification.md) identifica la compilación probada y sus límites.
 
 ## Crear una identidad
 
