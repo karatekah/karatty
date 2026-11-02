@@ -176,7 +176,9 @@ func TestE2EEClientNativeTUI(t *testing.T) {
 	alice.typeLine(t, "/verify bob "+bobFingerprint)
 	bob.typeLine(t, "/verify alice "+aliceFingerprint)
 	for _, p := range []*tuiProcess{alice, bob} {
-		p.waitFor(t, func(text string) bool { return strings.Contains(text, "Conectado") })
+		// The renderer can reuse the prefix of "Conectado" already on screen.
+		// SYNC is a new marker emitted on the first successful subscription.
+		p.waitFor(t, func(text string) bool { return strings.Contains(text, "SYNC 0") })
 	}
 	alice.typeLine(t, "mensaje nativo cifrado")
 	bob.waitFor(t, func(text string) bool { return strings.Contains(text, "mensaje nativo cifrado") })
