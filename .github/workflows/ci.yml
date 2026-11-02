@@ -34,7 +34,7 @@ jobs:
       - run: go test -count=1 ./pkg/cryptobridge
         env:
           KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
-      - run: go test -count=1 ./tests -run '^TestE2EEClientExchangeAndLocalPassphrase$' -v
+      - run: go test -count=1 ./tests -run '^TestE2EEClient' -v
         env:
           KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
   test:
@@ -145,9 +145,14 @@ jobs:
       - run: bash scripts/docker-smoke.sh
   vulnerabilities:
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.3'
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+      - run: cargo audit --file crypto/Cargo.lock
