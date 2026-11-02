@@ -40,13 +40,13 @@ foreach ($canonical in $catalog.pages) {
             continue
         }
         $body = [IO.File]::ReadAllText($fullPath)
-        if ($body -notmatch '^# [^\r\n]+\r?\n') { $failures.Add("Missing page title: $page") }
+        if ($body -notmatch '(?m)^# [^\r\n]+\r?\n') { $failures.Add("Missing page title: $page") }
         $links = foreach ($other in $catalog.languages) {
             if ($other.code -eq $language.code) { '**' + $other.name + '**' }
             else { '[' + $other.name + '](' + (Get-RelativeLink $page (Get-PagePath $canonical $other.code)) + ')' }
         }
         $bar = $links -join (' ' + [char]0x00B7 + ' ')
-        if ($body -notmatch ('^# [^\r\n]+\r?\n\r?\n' + [Regex]::Escape($bar) + '\r?\n\r?\n')) {
+        if ($body -notmatch ('(?m)^# [^\r\n]+\r?\n\r?\n' + [Regex]::Escape($bar) + '\r?\n\r?\n')) {
             $failures.Add("Missing or incorrect same-page language navigation: $page")
         }
 
