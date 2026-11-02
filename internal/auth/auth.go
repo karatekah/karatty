@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/pkg/protocol"
 	"golang.org/x/crypto/ssh"
 )
 

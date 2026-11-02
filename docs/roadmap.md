@@ -1,22 +1,26 @@
-# Alcance y decisiones de producto
+# Scope and product decisions
 
-La primera alpha es software para usar en un equipo o una red local: servidor propio con PostgreSQL, clientes TUI locales y directos 1:1 con aceptación. No requiere contratar dominio, VPS ni correo. El alojamiento de un servicio del proyecto en Internet queda para una fase futura; `karatty.dev` es el dominio elegido, todavía sin comprar.
+**English** · [Español](es/roadmap.md) · [Italiano](it/roadmap.md)
 
-## Alpha local y LAN
+The first alpha is local software: your PostgreSQL server, local TUI clients and accepted 1:1 direct chats. No purchased domain, VPS or email is required. A project-hosted Internet service is future work; `karatty.dev` is selected but not purchased.
 
-- Identidad seudónima con clave SSH Ed25519, sin correo ni nombre real. Recuperación con código guardado fuera del equipo.
-- E2EE con secreto futuro acotado según el [ADR 0003](adr/0003-e2ee-1to1.md); comparación de huellas por otro medio y nueva verificación al cambiar la identidad.
-- Archivo local protegido con frase secreta, reintentos persistidos y un dispositivo por cuenta.
-- Retención de 720 horas: se ocultan y purgan cuerpos e identificadores vencidos; la deduplicación se garantiza solo durante esos 30 días. La purga se activa automáticamente en `--public-signup`. Las copias externas y equipos apagados tienen límites distintos.
-- Código, documentación y paquetes del cliente distribuidos en GitHub bajo Apache-2.0. El [registro de publicación](release.md) describe el proceso y los límites de esta alpha local.
-- Pruebas reproducibles y límites en [verification.md](verification.md), incluido el ensayo de dos TUI Windows tras restaurar el ejecutable desde la cuarentena de Defender. La LAN entre dos equipos físicos y el comportamiento de la detección en otras instalaciones siguen sin comprobarse.
+## Local alpha and experimental LAN
 
-## Servicio alojado futuro
+- Pseudonymous Ed25519 SSH-key identity without email/real name; recovery through an offline code.
+- E2EE with bounded forward secrecy under [ADR 0003](adr/0003-e2ee-1to1.md), out-of-band fingerprints and re-verification after identity change.
+- Passphrase-protected archive, durable pending sends and one device per account.
+- 720-hour retention: hide/purge expired bodies/identifiers; deduplicate only within 30 days. `--public-signup` enables purging automatically. External copies/offline devices have separate limits.
+- Source, documentation and client packages on GitHub under Apache-2.0. [Release](release.md) describes publication and boundaries.
+- [Verification](verification.md) includes two native Windows TUIs after the server was restored from Defender quarantine. Two physical LAN hosts and the detection on other installations remain unverified.
 
-La compra del dominio, VPS, bucket, buzones, políticas con identidad del operador y pruebas de respaldo/restauración remota pertenecen a este hito. No bloquean por sí mismas la distribución de la alpha local/LAN. Antes de ofrecer alojamiento, deben cumplirse las condiciones de [operación](operations.md) y [despliegue](deploy.md). La ventana máxima elegida para respaldos es de siete días adicionales; debe comprobarse en la infraestructura real antes de prometerla.
+## Future hosting
 
-## Después de la alpha
+Domain/VPS/bucket/mailbox purchases, operator-identified policies and remote backup/restore belong to that milestone, not prerequisites for distributing local software. Complete [operations](operations.md)/[deployment](deploy.md) before offering hosting. The selected maximum backup window is seven extra days and must be verified against actual infrastructure before promising it.
 
-Grupos, SSH remoto con un modelo de cifrado adecuado, múltiples dispositivos, adjuntos, búsqueda, notificaciones e integraciones requieren diseño y pruebas propios. No tienen una fecha comprometida. Los posibles planes Community/Pro/Teams siguen siendo hipótesis.
+## After the alpha
 
-Karatty es el nombre de trabajo elegido por el usuario. La búsqueda preliminar registró un juego [Karatty VR](https://usb50-zx-spectrum.itch.io/ka). RDAP respondió como no registrado el 31 de octubre de 2026; esto no reserva el dominio ni garantiza su compra. El [buscador de Indecopi](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró cero marcas vigentes en búsqueda precisa para «Karatty» en clases 9, 38 y 42 el 1 de noviembre de 2026; la búsqueda amplia devolvió 200 resultados. La revisión de similitudes sigue pendiente. El módulo Go y el repositorio conservan `termlink` por continuidad técnica.
+Groups, remote SSH with an appropriate encryption model, multiple devices, attachments, search, notifications and integrations need their own design/tests. No date is committed. Community/Pro/Teams plans remain hypotheses.
+
+Karatty is the chosen working name. Preliminary research noted the game [Karatty VR](https://usb50-zx-spectrum.itch.io/ka). RDAP returned unregistered on October 31, 2026; that neither reserves the domain nor guarantees purchase. [Indecopi](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) showed zero current precise-name matches for Karatty in classes 9/38/42 on November 1, 2026; broad search returned 200 results. Similarity review remains pending.
+
+The repository/current Go module now use `karatty`. The historical alpha.1 source retains `termlink`; compatibility build paths, environment names and authentication domains keep their existing spelling. This migration does not replace published binaries or move the alpha.1 tag.

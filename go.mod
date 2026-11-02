@@ -1,4 +1,4 @@
-module github.com/karatekah/termlink
+module github.com/karatekah/karatty
 
 go 1.27.0
 

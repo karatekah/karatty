@@ -1,48 +1,50 @@
-# Verificación de la alpha experimental
+# Experimental alpha verification
 
-Esta matriz describe pruebas reproducibles del código para la alpha local/LAN. No sustituye una auditoría independiente ni una prueba entre equipos físicos. VPS, dominio y proveedores quedan para un futuro servicio alojado. Los resultados de cada commit están en [GitHub Actions](https://github.com/karatekah/termlink/actions/workflows/ci.yml).
+**English** · [Español](es/verification.md) · [Italiano](it/verification.md)
 
-| Área | Evidencia automatizada |
+Reproducible evidence for local/LAN code, not an independent audit or a physical-machine network trial. VPS/domain/provider work belongs to future hosting. Per-commit results are in [GitHub Actions](https://github.com/karatekah/karatty/actions/workflows/ci.yml).
+
+| Area | Automated evidence |
 | --- | --- |
-| Registro sin correo y recuperación | `TestAnonymousSignupAndOfflineRecovery`: posesión de clave, desafío de un intento, código incorrecto, revocación y rotación del código. |
-| Consentimiento y claves públicas | `TestE2EEKeyDistributionRequiresAcceptedDirect`: no expone identidad ni consume claves antes de aceptación; rechaza firma incorrecta y no reactiva claves consumidas. |
-| Mensajes E2EE | `TestE2EEClientExchangeAndLocalPassphrase`: dos clientes, huellas locales coincidentes, envío y respuesta reales, cuerpo opaco en PostgreSQL, 4096 bytes, reinicio, ACK alterado, sobre manipulado y reintento estable. |
-| Recuperación del dispositivo | La misma integración reemplaza la clave SSH, rota la identidad Olm, exige nueva verificación, migra el archivo legible y preserva envíos inciertos; comprueba que se elimina el estado anterior. |
-| Cierre y borrado | La integración E2EE mantiene la lectura del archivo local de un directo cerrado, impide enviar y retira los archivos de la cuenta borrada. Las suites existentes cubren autorización y borrado del servidor. |
-| Secreto futuro acotado | La prueba Rust avanza el ratchet y comprueba que copias de la cuenta y sesión actuales no descifran un mensaje ya consumido. También rechaza repetición y manipulación y recibe mensajes fuera de orden. No protege el archivo local desbloqueado ni una copia antigua del estado. |
-| Archivo local | `pkg/localstate`: frase incorrecta, manipulación, bloqueo entre procesos, reemplazo y reapertura de 16 MiB. `pkg/secureclient`: purga a 720 horas y orden del historial al recibir un ACK antes de sincronizar el backlog. |
-| Límites de transporte | `TestMaximumEnvelopePageOverHTTPAndWebSocket`: página completa de 100 cuerpos con el tamaño máximo y doble escape JSON, sin truncamiento. |
-| TUI | `pkg/tui`: huella propia y del contacto completas, instrucción de comparación externa y recuperación de un envío guardado con el mismo ID. |
-| Cliente nativo | `TestE2EEClientNativeTUI` abre dos ejecutables reales sobre PTY, desbloquea sus archivos locales, compara huellas, verifica ambos contactos y entrega un mensaje que PostgreSQL conserva como sobre opaco. |
-| TLS local/LAN | `scripts/TestDevelopmentCertificateLAN`: cadena de confianza, localhost, IPv4/IPv6 de loopback e IP privada; rechaza una IP ajena al certificado y sobrescribir certificados. También rechaza IP inválida, indefinida o multicast. |
-| Distribución | CI construye, extrae y ejecuta la versión y el puente Go–Rust en Windows, Linux y macOS; comprueba hashes, textos de licencias y commit de origen. |
-| Servicio | CI prueba PostgreSQL, TLS, WSS, cliente ejecutable y gateway legado; ejecuta detector de carreras, `go vet`, `govulncheck`, auditoría de Cargo.lock con RustSec, Docker, sintaxis de shell y verificación de unidades systemd. |
+| Email-free signup/recovery | `TestAnonymousSignupAndOfflineRecovery`: possession proof, single-use challenge, wrong code, revocation and code rotation |
+| Consent/key access | `TestE2EEKeyDistributionRequiresAcceptedDirect`: no identities/one-time claims before acceptance; invalid signatures rejected; consumed keys never reactivate |
+| E2EE messages | `TestE2EEClientExchangeAndLocalPassphrase`: matching self/peer fingerprints, send/reply, opaque PostgreSQL body, 4096 bytes, restart, altered ACK, tampered envelope and stable retry |
+| Device recovery | Same integration replaces SSH key/Olm identity, requires re-verification, migrates readable archive, retains uncertain sends and checks old-state deletion |
+| Closure/deletion | Closed-chat local history remains readable; new sends fail; account files are removed. Server suites cover authorization/deletion |
+| Bounded forward secrecy | Rust advances ratchets and shows current account/session copies cannot decrypt a consumed message; replay/tampering fail; out-of-order messages work. Unlocked archives/old snapshots are outside this guarantee |
+| Local archive | `pkg/localstate`: wrong phrase, tampering, process lock, replacement and 16 MiB reopen. `pkg/secureclient`: 720-hour cleanup and history ordering when ACK precedes backlog |
+| Transport bounds | `TestMaximumEnvelopePageOverHTTPAndWebSocket`: 100 maximum-size, double-escaped envelopes without truncation |
+| TUI | `pkg/tui`: complete fingerprints, external-comparison instruction and saved-send retry with the same ID |
+| Native client | `TestE2EEClientNativeTUI`: two real PTY executables unlock archives, share/verify fingerprints and deliver a message stored as an opaque envelope |
+| Local/LAN TLS | `scripts/TestDevelopmentCertificateLAN`: trust chain, localhost, IPv4/IPv6 loopback/private-IP SAN; rejects absent IP, overwrite, invalid/unspecified/multicast addresses |
+| Distribution | CI builds/extracts/runs version and Go–Rust bridge on Windows/Linux/macOS; checks hashes, licenses and source commit |
+| Service | Real PostgreSQL, TLS/WSS, executable client and legacy gateway; race detector, `go vet`, `govulncheck`, Cargo.lock/RustSec audit, Docker, shell syntax and systemd verification |
 
-## Ensayo de Windows del 1 de noviembre de 2026
+## Windows trial, November 1, 2026
 
-`TestE2EEClientExchangeAndLocalPassphrase` pasó con PostgreSQL 17.11 nativo y `karatty-crypto.exe` extraído del paquete Windows del candidato `d39b5da`. La integración comprueba envío, respuesta, historial, recuperación y reintentos con dos clientes; usa TLS en loopback. No es una sesión manual de dos TUI en Windows. La prueba nativa sobre PTY de la tabla se ejecuta en Linux en CI.
+`TestE2EEClientExchangeAndLocalPassphrase` passed using native PostgreSQL 17.11 and `karatty-crypto.exe` from candidate `d39b5da`. It exercises two clients over loopback TLS, including exchange, history, recovery and retries. That integration test itself is not a manual two-TUI Windows session. The automated native-PTY test above runs on Linux in CI.
 
-También pasaron `go vet ./...`, `go test -count=1 ./...` con base y puente configurados, `go build ./cmd/...`, las pruebas del generador de certificados y la comprobación de enlaces Markdown relativos. Compilar con éxito no implica que el antivirus permita ejecutar el archivo resultante.
+`go vet ./...`, `go test -count=1 ./...` with database/bridge configured, `go build ./cmd/...`, certificate tests and relative Markdown-link checks also passed. Compilation alone does not prove antivirus will permit execution.
 
-En el intento inicial, la compilación del servidor terminó, pero al ejecutarlo en la IP privada Windows Defender bloqueó `.local/lan-alpha/server.exe` con la detección `Behavior:Win32/DefenseEvasion.A!ml`. No se desactivaron protecciones ni se añadió una exclusión. La detección no se ha resuelto ni se ha demostrado que sea un falso positivo. Por ello, el ensayo del servidor nativo Windows por la IP de LAN quedó pendiente; no se afirma que ese despliegue haya pasado.
+Initially, Defender blocked `.local/lan-alpha/server.exe` when attempted on the private IP, classifying it as `Behavior:Win32/DefenseEvasion.A!ml`. No protection was disabled or exclusion added. No false positive was established, so that IP-listener trial did not pass.
 
-### Ensayo nativo tras restaurar el archivo
+### Native trial after restoration
 
-Posteriormente, el usuario restauró `.local/defender-review/server.exe` desde la cuarentena de Windows. Esa compilación del código `4c0356f` tiene SHA-256 `9a81de63cc5149d551bcc4abc3cf0b6a8b83b8658a58d6fc819bb8fe7db830f1`. Después pasaron la ejecución de `--help` y el arranque del servidor nativo en `https://127.0.0.1:28443`, en modo E2EE y sin gateway SSH.
+The user later restored `.local/defender-review/server.exe` from quarantine. The `4c0356f` build has SHA-256 `9a81de63cc5149d551bcc4abc3cf0b6a8b83b8658a58d6fc819bb8fe7db830f1`. Its `--help` execution and native startup at `https://127.0.0.1:28443` then passed in E2EE mode without SSH gateway.
 
-Se extrajo el paquete Windows `v0.1.0-alpha.1` de ese mismo commit y se abrieron dos TUI nativas en terminales ConPTY del mismo equipo. Se probaron registro con claves distintas y frase secreta local, solicitud y aceptación del directo, intercambio de las huellas propias y verificación de ambos contactos. Alice envió un mensaje y Bob respondió; ambos mensajes aparecieron en el otro cliente y recibieron ACK con secuencias 1 y 2. Tras cerrar y volver a abrir las dos TUI, ambas recuperaron los dos mensajes y sincronizaron hasta la secuencia 2.
+The Windows `v0.1.0-alpha.1` client package from that commit was extracted. Two real TUI processes ran through ConPTY on the same machine: distinct-key registration/local passphrases, direct request/acceptance, sharing self fingerprints and verifying both contacts. Alice sent and Bob replied; both messages appeared in the other client and received ACK sequences 1/2. Closing/reopening both TUIs recovered both messages and synchronized through sequence 2.
 
-La consulta a PostgreSQL comprobó dos sobres con estructura E2EE y ausencia de ambos textos de prueba en los cuerpos almacenados. Los textos tampoco aparecieron en los logs operativos del servidor. Al terminar se cerraron los clientes y se detuvo el servidor de ensayo.
+PostgreSQL held two E2EE-shaped envelopes without either readable test message. The texts were also absent from operational server logs. Clients and the trial server were stopped afterward.
 
-La protección en tiempo real y el monitor de comportamiento de Defender permanecieron activos, con firmas `1.463.83.0`. Durante esta prueba no se observó una nueva detección para ese ejecutable. Esto valida esa compilación tras la restauración local en este equipo; no confirma que la clasificación anterior fuera un falso positivo ni garantiza el comportamiento de otras instalaciones de Windows. No se enviaron muestras a Microsoft.
+Defender real-time/behavior protection stayed active with signatures `1.463.83.0`; no new detection for that executable was observed during the trial. This validates that restored build on that device, not a false-positive determination or compatibility with other Windows installations. No samples were sent to Microsoft.
 
-No se dispone de una segunda máquina en esta tarea. La conversación entre **dos equipos físicos de la LAN** sigue sin comprobarse. La [guía](quickstart.md) describe cómo realizarla; las pruebas de certificados no demuestran la conectividad entre máquinas.
+Only one machine was available. **Two physical LAN hosts remain untested.** [Setup instructions](quickstart.md) and certificate tests do not prove cross-machine reachability.
 
-## Límites de esta evidencia
+## Evidence limits
 
-- No se ha hecho una auditoría externa de Karatty. La auditoría pública de vodozemac corresponde a esa biblioteca y su versión auditada; no valida automáticamente esta integración ni versiones posteriores.
-- Las pruebas comprueban persistencia antes de exponer o enviar mensajes, bloqueos y reemplazo de archivos. No se ha ensayado un corte físico de energía en los sistemas de archivos de las tres plataformas.
-- Secuencia, fecha, nombre de cuenta y disponibilidad del servicio son metadatos controlados por el servidor. El cliente valida estructura y vincula criptográficamente conversación, remitente e ID de mensaje dentro del contenido, pero un servidor puede ocultar mensajes o negar servicio.
-- El archivo local está acotado a 16 MiB antes de cifrar. Si se agota, el cliente devuelve error y no transmite un ratchet que no haya podido guardar. La limpieza solo puede ejecutarse cuando se usa la aplicación; no promete borrar un equipo apagado ni snapshots ajenos.
-- La TUI nativa no tiene aún una revisión manual completa con lectores de pantalla y terminales de todas las plataformas. CI verifica el flujo funcional y los binarios, no esa experiencia visual.
-- Faltan la instalación externa contra el servicio real, el vencimiento físico de respaldos remotos, una restauración desde el proveedor contratado, y las verificaciones de dominio, certificado, políticas y contacto del operador. Deben registrarse en [release.md](release.md) antes de anunciar el servicio.
+- No external Karatty audit. A vodozemac audit covers that library/audited version, not automatically this integration or later versions.
+- Persistence-before-send/display, locking and replacement are tested; physical power loss across all three filesystems is not.
+- Sequence, time, account name and service availability are server-controlled metadata. The encrypted payload binds conversation/sender/client ID; a server can still hide messages or deny service.
+- Archive plaintext is bounded to 16 MiB. On exhaustion, saving fails before transmitting an unsaved advanced ratchet. Cleanup needs a running client and cannot erase offline devices/other snapshots.
+- Native-TUI screen-reader/accessibility and all-platform visual reviews remain incomplete; CI validates behavior/binaries, not that experience.
+- Real hosted-service installation, provider backup expiry/restore, domain/certificate checks and operator policies/contact remain future work. Record them under [release](release.md) before announcing hosting.

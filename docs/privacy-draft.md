@@ -1,44 +1,46 @@
-# Política de privacidad de Karatty — borrador para revisión
+# Karatty privacy policy — review draft
 
-**Borrador sin vigencia para un futuro servicio alojado; no presentarlo como una política activa.** La alpha actual se ejecuta en una instancia local/LAN administrada por quien la instala. Este texto no describe un servicio central ya disponible. Cada administrador debe informar del tratamiento y las copias de su instancia. El dominio elegido es `karatty.dev`, pero aún no está comprado. Faltan la identidad y el correo público del titular, las ubicaciones reales de los proveedores, la comprobación de la marca y la validación legal y operativa. Fecha de entrada en vigor: `[PENDIENTE]`.
+**English** · [Español](es/privacy-draft.md) · [Italiano](it/privacy-draft.md)
 
-## Responsable y contacto
+**Inactive draft for a future hosted service; do not present it as an active policy.** The current alpha is a local/LAN instance administered by its installer, not a project-hosted service. Each administrator must disclose their instance's processing/copies. `karatty.dev` is selected but unpurchased. Operator identity/contact, actual provider locations, brand checks and legal/operational review are missing. Effective date: `[PENDING]`.
 
-Karatty es operado por `[NOMBRE LEGAL DEL TITULAR]`, persona natural domiciliada en Perú. Para consultas de privacidad, acceso, rectificación, cancelación u oposición, escribe a `[CORREO PÚBLICO DE PRIVACIDAD]`. Para soporte: `[CORREO PÚBLICO DE SOPORTE]`.
+## Proposed controller and contact
 
-## Datos que tratamos y finalidad
+The future operator would be `[OPERATOR LEGAL NAME]`, a natural person domiciled in Peru. Privacy/access/rectification/cancellation/objection requests: `[PUBLIC PRIVACY EMAIL]`; support: `[PUBLIC SUPPORT EMAIL]`.
 
-- **Cuenta y acceso:** seudónimo, clave pública SSH, huella de esa clave, fechas de creación y acceso, hash de las sesiones y hash del código de recuperación. Se usan para crear la cuenta, autenticarte, recuperar el acceso y prevenir abusos. No pedimos correo, nombre real ni clave privada SSH; tampoco almacenamos el código de recuperación en claro.
-- **Claves de E2EE (experimental):** identidad pública Olm, firma con la clave SSH, claves públicas de un solo uso firmadas y marca de consumo. Se guardan para distribuir claves solo a interlocutores de un directo aceptado y evitar reutilizar las ya consumidas. El servidor no recibe la identidad privada ni el estado del ratchet; estas claves públicas se eliminan al borrar la cuenta o recuperar el acceso con otra clave SSH. El cliente local usa estas claves para cifrar los directos del modo público de ensayo.
-- **Archivo local cifrado:** el historial legible, los envíos pendientes y el estado del ratchet se guardan cifrados en el equipo, con una frase secreta local independiente de la clave SSH. El cliente la solicita al abrir el archivo y elimina entradas vencidas al volver a usarlo. Perderla impide abrir el archivo; el código de recuperación de cuenta no la reemplaza. Al reemplazar la clave SSH, se migra el historial legible al nuevo archivo cifrado y se elimina el antiguo tras guardar el nuevo. Los envíos sin confirmación quedan señalados como inciertos.
-- **Mensajería:** en el modo público de ensayo, el servidor guarda sobres cifrados, remitente, conversación, identificador de reintento, secuencia y fecha; solicitudes y bloqueos de chats directos. El modo por invitación anterior conserva cuerpos legibles y canales, por lo que no formará parte del servicio público. Los metadatos permiten entregar mensajes y controlar consentimiento y bloqueo.
-- **Operación:** contadores agregados de peticiones y fallos y límites temporales de tasa en memoria. La aplicación no registra el cuerpo de mensajes, códigos ni tokens en sus logs operativos. El proveedor de infraestructura puede generar registros propios conforme a su servicio.
+## Data and purposes
 
-El seudónimo no garantiza anonimato absoluto: la clave pública, la relación entre interlocutores, las fechas y la información que compartas pueden identificarte. Los miembros de una conversación pueden leer los mensajes enviados a ella. En el modo público de ensayo, el cliente oficial cifra el contenido antes de enviarlo; el operador conserva los metadatos citados. El modo legado sigue exponiendo texto legible al servidor. **Este prototipo no es todavía un servicio público.** HTTPS y WSS protegen el tránsito.
+- **Account/access:** pseudonym, public SSH key/fingerprint, creation/access dates, session hashes and recovery-code hash. Used for registration, authentication, recovery and abuse prevention. No account email, real name, SSH private key or readable recovery code is collected/stored.
+- **Experimental E2EE public keys:** Olm public identity, SSH signature, signed one-time public keys and consumption markers. Distributed only to accepted direct-chat peers and used to prevent one-time-key reuse. The server receives no private identity or ratchet state. Public keys are removed on account deletion or recovery with a replacement SSH key.
+- **Encrypted local archive:** readable history, pending sends and ratchet state are encrypted on the device under an independent local passphrase. Opening/using the client requests it and cleans expired entries. Losing it prevents opening the archive; recovery codes cannot replace it. SSH-key replacement migrates readable history and removes old encrypted state after saving the new state. Unconfirmed older sends remain uncertain.
+- **Messaging:** E2EE mode stores opaque envelopes, sender/conversation/retry ID/sequence/time plus direct requests/blocks. The older invitation/channel prototype stores readable bodies and is outside the alpha. Metadata support delivery, consent and blocking.
+- **Operations:** aggregate request/failure counters and temporary in-memory rate limits. Application operational logs do not contain message bodies, codes or tokens. Infrastructure providers may keep their own service logs.
 
-## Proveedores y transferencias
+Pseudonyms do not guarantee absolute anonymity: public keys, contact relationships, timestamps or shared information can identify someone. Participants can read messages delivered to them. Official clients encrypt before sending; the operator retains delivery metadata. Legacy mode exposes readable content and is outside alpha use. HTTPS/WSS protect transport. No project-hosted service is currently operating.
 
-El servidor y PostgreSQL se alojarán en `[PROVEEDOR, REGIÓN Y PAÍS]`. Los respaldos cifrados se guardarán en `[PROVEEDOR, REGIÓN Y PAÍS]`. El código de recuperación se muestra una sola vez en el cliente y no se envía por correo. Antes del lanzamiento se completará la información sobre ubicaciones y flujos internacionales de datos.
+## Providers and transfers
 
-No vendemos datos personales ni usamos el contenido de mensajes para publicidad o entrenamiento de modelos. `[VERIFICAR CON LOS CONTRATOS Y CONFIGURACIONES REALES DE LOS PROVEEDORES]`.
+Server/PostgreSQL: `[PROVIDER, REGION, COUNTRY]`. Encrypted backups: `[PROVIDER, REGION, COUNTRY]`. Recovery codes appear once locally rather than being emailed. Complete provider locations/international data flows before hosting.
 
-## Conservación y borrado
+Proposed statement, subject to verification: personal data are not sold and message content is not used for advertising/model training. `[VERIFY ACTUAL PROVIDER CONTRACTS AND CONFIGURATION]`.
 
-- Los mensajes dejan de estar disponibles en el historial a las **720 horas (30 días)** de su creación. La purga física de la base activa se ejecuta al arrancar y cada hora en modo público; puede haber un breve desfase operativo tras el límite de acceso.
-- Las solicitudes de chat directo vencen a los **7 días**. Los desafíos de autenticación y recuperación vencen a los **2 minutos**. Las sesiones temporales vencen a las **8 horas**; el ciclo de mantenimiento limpia los registros vencidos y las sesiones revocadas.
-- El usuario puede borrar su cuenta desde el cliente. La operación borra sus claves SSH y públicas de E2EE, sesiones, membresías y mensajes que escribió de la base activa y retira los archivos locales de la cuenta en el directorio configurado de este equipo. No borra copias ajenas ni otros equipos a distancia. Los mensajes escritos por otras personas se conservan hasta su propio vencimiento; los chats directos afectados quedan en solo lectura para ellas.
-- Los respaldos completos se cifran antes de subirlos. La operación propuesta los elimina a los **3 días** y configura el mismo plazo en el proveedor. Un mensaje ya vencido o una cuenta borrada pueden permanecer en un respaldo por un período adicional, con un máximo público previsto de **7 días**. Este máximo debe verificarse contra el borrado real del proveedor antes de publicar esta política.
+## Retention and deletion
 
-## Tus opciones y derechos
+- Messages disappear from history after **720 hours (30 days)**. E2EE-mode physical purging runs at startup/hourly, so removal can lag the access cutoff.
+- Direct requests expire after **7 days**, authentication/recovery challenges after **2 minutes**, sessions after **8 hours**. Maintenance removes expired records/revoked sessions.
+- Client-driven account deletion removes SSH/E2EE public keys, sessions, memberships and authored messages from active storage, plus local account files under the configured state root on that device. It cannot remotely remove other copies/devices. Other participants' authored messages expire on their own schedule; affected chats become read-only.
+- Proposed full backups are encrypted before upload and expire locally/remotely after **3 days**. Deleted/expired data may survive in a backup for at most **7 additional days** under the proposed public policy. Verify actual provider removal before publishing that promise. The local guide does not configure automatic backups.
 
-Puedes rechazar solicitudes de chat directo, bloquear usuarios y borrar tu cuenta. Para ejercer derechos de acceso, rectificación, cancelación u oposición sobre tus datos, escribe al correo de privacidad indicado arriba. Podemos pedir una prueba razonable de que controlas la cuenta antes de responder. La [ANPD explica los derechos ARCO](https://www.gob.pe/9270-que-son-los-derechos-arco) y las vías de reclamo disponibles en Perú.
+## Choices and rights
 
-## Seguridad y cambios
+Users can reject direct requests, block accounts and delete their account. Direct access/rectification/cancellation/objection requests to the future privacy contact. A reasonable account-control proof may be requested before replying. See the Peruvian authority's [ARCO-rights guidance](https://www.gob.pe/9270-que-son-los-derechos-arco) and complaint routes.
 
-Protegemos el acceso con claves SSH y un código de recuperación que se muestra una sola vez. Conserva tu clave privada y ese código fuera del alcance de terceros. Si pierdes ambos, el flujo automático no puede recuperar tu cuenta. Publicaremos los cambios materiales de esta política en `[URL PÚBLICA]` antes de que entren en vigor. La recuperación mediante código reemplaza la clave SSH y la identidad Olm; solo puede conservar el historial ya legible si el archivo local sigue disponible y se conoce su frase secreta. Los contactos deben verificar la identidad nueva.
+## Security and changes
 
-## Revisión previa a publicación
+SSH keys and the one-time-displayed offline code protect access. Keep them away from others; losing both prevents automatic recovery. Material policy changes would be announced at `[PUBLIC URL]` before taking effect. Code-based recovery replaces SSH/Olm identity and preserves already-readable local history only if the file/passphrase remain available. Contacts must verify the replacement identity.
 
-La [ANPD indica que los titulares de bancos de datos personales, incluidas personas naturales, deben inscribirlos](https://www.gob.pe/institucion/anpd/pages/8060-inscribir-banco-de-datos-en-el-registro-nacional-de-proteccion-de-datos-personales). La [comunicación de flujos transfronterizos](https://www.gob.pe/9253-inscribir-flujo-transfronterizo-de-datos-personales) también debe revisarse al confirmar las ubicaciones de infraestructura. Estas gestiones corresponden al titular y requieren sus datos personales; este borrador no afirma que ya se hayan completado.
+## Required review before hosting
 
-La revisión debe considerar el [Reglamento aprobado por el Decreto Supremo 016-2024-JUS](https://www.gob.pe/institucion/anpd/normas-legales/6554453-16-2024-jus), vigente desde el 31 de marzo de 2025 según la información oficial de la ANPD. La consulta de estas fuentes no constituye una validación jurídica ni una inscripción realizada.
+Review ANPD guidance on [personal-data database registration](https://www.gob.pe/institucion/anpd/pages/8060-inscribir-banco-de-datos-en-el-registro-nacional-de-proteccion-de-datos-personales), including natural-person controllers, and [cross-border data-flow registration](https://www.gob.pe/9253-inscribir-flujo-transfronterizo-de-datos-personales) once provider locations are known. These actions require the controller's personal information; this draft records no completed filing.
+
+The original legal review references [Supreme Decree 016-2024-JUS](https://www.gob.pe/institucion/anpd/normas-legales/6554453-16-2024-jus), recorded as effective March 31, 2025 in ANPD information. The operator must verify applicable requirements before launch. Reading sources or translating this draft is not legal validation or registration.

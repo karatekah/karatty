@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/karatekah/termlink/migrations"
+	"github.com/karatekah/karatty/migrations"
 )
 
 func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {

@@ -14,11 +14,11 @@ import (
 	sshserver "charm.land/ssh"
 	"charm.land/wish/v2"
 	wishtea "charm.land/wish/v2/bubbletea"
-	"github.com/karatekah/termlink/internal/auth"
-	"github.com/karatekah/termlink/internal/chat"
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/pkg/protocol"
-	"github.com/karatekah/termlink/pkg/tui"
+	"github.com/karatekah/karatty/internal/auth"
+	"github.com/karatekah/karatty/internal/chat"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/tui"
 )
 
 func NewSSH(a *auth.Service, c *chat.Service, hostKey string) (*sshserver.Server, error) {

@@ -1,19 +1,43 @@
-# Seguridad y privacidad
+# Security and privacy
 
-Pruebas obligatorias: aislamiento de miembros, revocación, invitaciones, firma y reuso de desafíos, secuencia, deduplicación y persistencia. No registrar cuerpos, tokens, invitaciones, firmas ni claves privadas. Solo logs de inicio/error genéricos y contadores operativos.
+**English** · [Español](es/security.md) · [Italiano](it/security.md)
 
-Límites del sprint: mensajes legibles del prototipo hasta 4096 bytes UTF-8, sin caracteres de control ni formato invisible; sobres de ensayo del modo público hasta 12288 bytes; páginas de 100, conexiones simultáneas acotadas, tiempo de handshake, tasas de peticiones y envío, timeout de escritura. Un consumidor lento se desconecta y puede sincronizar por secuencia. El cliente limita lo retenido en pantalla.
+Required tests cover membership isolation, revocation, invitations, challenge signatures/reuse, sequence ordering, deduplication and persistence. Never log message bodies, tokens, invitations, signatures or private keys. Operational output is limited to generic startup/error logs and aggregate counters.
 
-TLS obligatorio excepto modo de desarrollo explícito restringido a loopback. SSH utiliza clave de host persistente y el cliente debe verificarla; no desactivar StrictHostKeyChecking. Los servidores escuchan en loopback por defecto.
+## Transport and limits
 
-La [matriz de verificación](verification.md) cubre el intercambio E2EE, pérdida y cambio de identidad, archivo local, límites y extracción de paquetes. Documenta también la detección de Defender del servidor Windows y el ensayo nativo que pasó después de que el usuario restaurara el archivo desde la cuarentena, con las protecciones activas. Esto no confirma un falso positivo ni valida otras instalaciones. La prueba entre dos equipos de LAN sigue pendiente. No hay auditoría independiente de Karatty. El registro abierto usa seudónimo y clave SSH, sin correo. La TUI local cifra directos con Olm después de verificar la huella del contacto; el modo de invitaciones y SSH remoto siguen sin E2EE y quedan fuera de la alpha. La operación de un servicio alojado en Internet queda para el futuro y requerirá comprobar proveedores, respaldos y políticas del operador.
+Plaintext prototype messages are limited to 4096 UTF-8 bytes, without controls or invisible formatting; E2EE envelopes to 12288 bytes. Pages contain at most 100 messages. Connections, handshakes, request/send rates and write times are bounded. Slow consumers disconnect and resynchronize against the durable log; the client bounds screen history.
 
-La frase secreta cifra el archivo local con Argon2id y XChaCha20-Poly1305. Se solicita al abrir el cliente y no se envía al servidor. El cliente elimina mensajes vencidos del archivo activo al abrirlo o guardarlo; un equipo apagado no puede ejecutar la purga. Tras cambiar la clave SSH, el cliente conserva el historial que ya estaba descifrado en un archivo nuevo y elimina el archivo cifrado anterior después de guardar y sincronizar el nuevo dispositivo. Los envíos anteriores sin ACK se conservan como inciertos para que la persona revise si llegaron. El borrado local mientras el programa no se ejecuta no puede garantizarse.
+TLS is required except explicitly enabled loopback-only HTTP development mode. Prototype SSH uses a persistent host key whose fingerprint must be verified; do not disable `StrictHostKeyChecking`. Listeners default to loopback.
 
-Los límites de tasa son por proceso: API 10 peticiones/s por IP con ráfaga de 30, envío 2 mensajes/s por usuario con ráfaga de 10, SSH 1 intento/s por IP con ráfaga de 10. Mapa de límites acotado a 4096 identidades, 128 conexiones HTTP, 64 SSH y 64 suscripciones/canales SSH por proceso; tablas de desafíos con máximo 4096 y TTL de dos minutos. Hay latidos WSS cada 15 s, timeout de escritura/latido de 5 s, handshake SSH de 10 s y sesión máxima de 8 h. Revisar límites compartidos y capacidad antes de aumentar procesos o exponer a Internet.
+The [verification matrix](verification.md) covers E2EE, identity loss/change, archives, transport limits and package extraction. It records Defender's server detection and the subsequent native Windows trial after the user restored the file, with protections active. This does not establish a false positive or validate other installations. Two-machine LAN testing is pending. Karatty has no independent audit.
 
-Reabrir un chat directo existente exige conservar ambas membresías; no restaura un acceso revocado. La recuperación de acceso usa el código guardado fuera del equipo y una clave SSH nueva. El cliente cifrado guarda el sobre y el ID de cada envío pendiente en su archivo local antes de transmitirlo; un reintento conserva exactamente el mismo sobre. El cliente legado conserva los pendientes solo en memoria y los scripts deben reutilizar `--id`.
+Open registration uses a pseudonym and SSH key, without email. The local TUI encrypts direct chats with Olm after fingerprint verification. Invitation/remote-SSH modes lack E2EE and are excluded from the alpha. Future Internet hosting needs provider, backup and policy verification.
 
-Un chat directo solo se abre con la llamada recíproca del destinatario. Las solicitudes caducan en 7 días, se limitan a 10 salientes activas por usuario y a una tasa de 1/minuto con ráfaga de 3 por proceso. El destinatario puede rechazar o bloquear. El bloqueo cierra el chat existente e impide mensajes y solicitudes nuevos; no borra los mensajes que cada participante ya podía leer.
+## Local state and recovery
 
-El código de recuperación tiene 192 bits aleatorios, se almacena solo como hash y se rota al usarlo. El desafío de recuperación dura dos minutos y admite un intento. La recuperación revoca todas las claves SSH y sesiones previas. Si se pierden la clave y el código, no hay recuperación administrativa por correo. El seudónimo, la clave pública, los vínculos de conversación y los metadatos todavía pueden hacer identificable a una persona; seudónimo no significa anonimato absoluto.
+Argon2id and XChaCha20-Poly1305 encrypt the archive with a local passphrase requested on opening and never sent to the server. Expired entries are removed when the client opens/saves; an offline device cannot run cleanup. After SSH-key recovery, the client migrates readable history into a new encrypted file and removes the old file only after saving/synchronizing the new device. Older sends lacking ACK remain uncertain for manual review. Cleanup while the program is not running cannot be guaranteed.
+
+Reopening a direct chat requires both memberships and never restores revoked access. Recovery uses an offline code and a new SSH key. The encrypted client stores each pending envelope and client ID before transmission; retries preserve exactly that envelope. The legacy client only keeps pending sends in memory, so scripts must reuse `--id`.
+
+## Process-level bounds
+
+| Resource | Limit |
+| --- | --- |
+| API | 10 requests/s per IP, burst 30 |
+| Sends | 2 messages/s per user, burst 10 |
+| Prototype SSH | 1 authentication attempt/s per IP, burst 10 |
+| Rate-limiter identities | 4096 |
+| HTTP connections / SSH connections | 128 / 64 |
+| SSH subscriptions/channels | 64 per process |
+| Authentication challenges | At most 4096, two-minute TTL |
+| WSS heartbeat | Every 15 s; write/heartbeat timeout 5 s |
+| SSH handshake / maximum session | 10 s / 8 h |
+
+These limits apply per process. Review shared enforcement and capacity before adding processes or exposing the service to the Internet.
+
+## Consent and anonymity
+
+A direct chat opens only after the recipient's reciprocal call. Requests expire after 7 days; a user may have 10 active outgoing requests and is limited to 1/minute, burst 3, per process. Recipients may reject or block. Blocking closes an existing chat and prevents new messages/requests; it does not erase previously delivered copies.
+
+Recovery codes contain 192 random bits, are stored only as hashes and rotate when used. Recovery challenges expire after two minutes and allow one attempt. Recovery revokes prior SSH keys and sessions. Losing both key and code leaves no administrative email-recovery route. Pseudonyms, public keys, contact relationships and delivery metadata can identify a person; pseudonymity is not absolute anonymity.

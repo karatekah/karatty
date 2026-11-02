@@ -1,42 +1,58 @@
-# Protocolo v1 del sprint
+# Protocol v1
 
-JSON sobre HTTPS. Todos los endpoints salvo desafío/prueba/health requieren `Authorization: Bearer SESSION_TOKEN`; no se admiten tokens en URLs. Respuestas con `Cache-Control: no-store`. Errores: 400 entrada inválida, 401 autenticación, 403 membresía, 409 ID reutilizado con contenido distinto, 429 límite. Errores internos no incluyen consultas ni datos.
+**English** · [Español](es/protocol.md) · [Italiano](it/protocol.md)
 
-La respuesta de autenticación incluye `public_mode`. El cliente local exige el flujo cifrado cuando vale `true`; el CLI legado `--legacy` se limita al servidor de invitaciones para desarrollo local.
+JSON over HTTPS. All endpoints except authentication challenge/proof, recovery and health require `Authorization: Bearer SESSION_TOKEN`. Tokens are not accepted in URLs. Responses use `Cache-Control: no-store`. Errors: 400 invalid input, 401 authentication, 403 membership, 409 ID/content conflict, 429 rate limit. Internal errors do not expose queries or data.
 
-| Operación | Ruta |
+Authentication returns `public_mode`. When true, the local client requires encrypted messaging; `--legacy` is restricted to the invitation prototype for local development.
+
+| Operation | Route |
 | --- | --- |
-| Desafío de registro/login | POST /v1/auth/challenge |
-| Firma SSH serializada (JSON codifica []byte como base64) | POST /v1/auth/proof |
-| Inicio de recuperación con seudónimo y clave pública nueva | POST /v1/recovery/start |
-| Firma de la nueva clave y código de recuperación | POST /v1/recovery/complete |
-| Cierre/revocación de sesión | DELETE /v1/session |
-| Eliminación de la cuenta autenticada | DELETE /v1/account |
-| Conversaciones accesibles (máximo 100 en sprint) | GET /v1/conversations |
-| Solicitar chat directo o aceptar solicitud entrante | POST /v1/direct |
-| Solicitudes directas entrantes | GET /v1/direct/requests |
-| Rechazar una solicitud entrante | DELETE /v1/direct/requests/{username} |
-| Bloquear usuario y cerrar chat directo | PUT /v1/direct/blocks/{username} |
-| Desbloquear usuario | DELETE /v1/direct/blocks/{username} |
-| Subir identidad Olm y claves públicas de un solo uso firmadas (experimental) | POST /v1/e2ee/device |
-| Leer identidad pública del contacto tras aceptar el directo (experimental) | GET /v1/e2ee/peer/{username} |
-| Consumir una clave pública de un solo uso del contacto (experimental) | POST /v1/e2ee/peer/{username}/claim |
-| Historial ascendente por secuencia | GET /v1/conversations/{id}/messages?after=0&limit=100 |
-| Envío con client_id estable y body | POST /v1/conversations/{id}/messages |
-| Eventos por secuencia, cabecera Bearer | WSS /v1/conversations/{id}/events?after=0 |
+| Registration/login challenge | POST /v1/auth/challenge |
+| Serialized SSH signature (JSON encodes []byte as base64) | POST /v1/auth/proof |
+| Begin recovery with pseudonym and new public key | POST /v1/recovery/start |
+| New-key signature and recovery code | POST /v1/recovery/complete |
+| End/revoke session | DELETE /v1/session |
+| Delete authenticated account | DELETE /v1/account |
+| Accessible conversations, at most 100 | GET /v1/conversations |
+| Request direct chat or accept incoming request | POST /v1/direct |
+| Incoming direct requests | GET /v1/direct/requests |
+| Reject incoming request | DELETE /v1/direct/requests/{username} |
+| Block user and close direct chat | PUT /v1/direct/blocks/{username} |
+| Unblock user | DELETE /v1/direct/blocks/{username} |
+| Upload Olm identity and signed one-time public keys | POST /v1/e2ee/device |
+| Read peer public identity after acceptance | GET /v1/e2ee/peer/{username} |
+| Claim one peer one-time public key | POST /v1/e2ee/peer/{username}/claim |
+| Ascending sequence history | GET /v1/conversations/{id}/messages?after=0&limit=100 |
+| Send stable client_id and body | POST /v1/conversations/{id}/messages |
+| Sequence events with Bearer header | WSS /v1/conversations/{id}/events?after=0 |
 
-`protocol.Message` es también el ACK de persistencia: ID del servidor, client_id, conversación, remitente, username, seq, body y created_at. No significa leído ni entregado a todas las sesiones. Se devuelve después del commit. Dos remitentes pueden usar el mismo client_id; un remitente reutiliza exactamente el mismo ID al reintentar el mismo contenido en la misma conversación. La deduplicación está garantizada durante los 30 días de retención del mensaje. Al purgar un mensaje vencido se borran su contenido e identificadores; un envío posterior con el mismo client_id se considera nuevo. La purga física se ejecuta manualmente o al activar `server --retention-30d`.
+## Persistence and history
 
-Los endpoints `e2ee` distribuyen claves públicas según el [ADR 0003](adr/0003-e2ee-1to1.md). `POST /device` exige una firma de la clave SSH de sesión sobre `KARATTY-E2EE-IDENTITY-v1\nUSER_ID\nED25519\nCURVE25519`; cada clave de un solo uso exige firma de la identidad Olm Ed25519 sobre `KARATTY-OTK-v1\nCURVE25519\nONE_TIME_KEY`. Las claves se codifican como base64 estándar sin relleno. La identidad no puede sustituirse silenciosamente; la recuperación de cuenta la elimina. Solo un miembro de un directo aceptado puede consultar la identidad del otro y consumir una clave; una clave consumida no puede volver a activarse aunque se suba de nuevo. El cliente oficial compara la huella fuera de Karatty, cifra con Olm y guarda el ratchet en el archivo local cifrado.
+`protocol.Message` is also the persistence ACK: server ID, `client_id`, conversation, sender, username, sequence, body and creation time, returned after commit. It does not indicate reading or delivery to every session. Different senders may use the same client ID; one sender reuses exactly the same ID for the same message/conversation retry.
 
-`Page` contiene messages y next. Durante la sesión, el cliente guarda en memoria la última secuencia entregada y reconecta desde ella; descarta eventos ya vistos. La TUI sincroniza desde cero al abrirse de nuevo. El servidor asigna secuencias bajo bloqueo de conversación, en la transacción del INSERT. La purga y la eliminación de cuentas pueden dejar huecos en la numeración; next_seq no retrocede. El historial no entrega mensajes con más de 720 horas, incluso antes de la purga física. Historial y suscripción se autorizan incluso si el lote está vacío. No hay cola ilimitada en memoria: cada consulta devuelve 100 mensajes; consumidor lento agota el timeout de escritura y reconecta al registro durable.
+Deduplication is guaranteed for the message's 30-day retention. Purging deletes content and identifiers; a later send with that ID is new. Purging is automatic at startup/hourly with `--public-signup`, or manual/explicitly enabled with `server --retention-30d` in development.
 
-`Conversation.closed` indica una conversación directa archivada tras la eliminación de uno de sus participantes. El otro puede leer sus propios mensajes hasta su vencimiento, pero no enviar nuevos. La eliminación borra la cuenta, sus claves, sesiones, membresías y mensajes; no borra los mensajes escritos por otras personas. Los respaldos requieren una política de vencimiento separada.
+`Page` contains `messages` and `next`. The legacy client keeps its last delivered sequence in memory and filters duplicate events. The secure client persists its ratchet, archive and server cursor; a reopened TUI rebuilds its view from the archive while server synchronization uses the durable cursor. Sequences are assigned under a conversation lock in the INSERT transaction. Purging/deletion may leave gaps; `next_seq` never moves backwards. History hides messages older than 720 hours before physical purging. Empty batches still require authorization. Each query returns at most 100 messages; slow consumers hit the write timeout and reconnect to the durable log.
 
-`POST /v1/direct` devuelve `pending:true` y un ID vacío cuando crea o repite una solicitud. Solo la llamada recíproca del destinatario abre el chat y devuelve su ID. Las solicitudes vencen a los 7 días; el listado no muestra solicitudes vencidas. Rechazar elimina la solicitud entrante. Bloquear elimina las solicitudes de ambas direcciones, impide nuevas solicitudes y cierra el chat directo existente; ambas partes pueden leer el historial ya autorizado hasta su vencimiento. Desbloquear permite iniciar un nuevo intercambio, sin reabrir el chat archivado.
+`Conversation.closed` marks a direct chat archived after a participant is deleted. The remaining member can read authorized retained history but cannot send. Deletion removes that account's keys, sessions, memberships and authored messages, not other participants' messages or remote copies already delivered. Backup expiry is a separate operator policy.
 
-El modo `server --public-signup` desactiva el registro por invitación y permite crear una cuenta con seudónimo y clave pública Ed25519, sin correo. En este modo, la API solo lista directos y rechaza historial, eventos y envíos de canales, incluso si existían antes. Los envíos a directos requieren en `body` un sobre JSON versionado con `version:1`, `session_id`, `sender_identity` y `message:{type,body}`; las claves y el cuerpo Olm se codifican en base64 estándar sin relleno. La API comprueba únicamente la **estructura**, no puede demostrar que el cuerpo sea cifrado válido. El cliente oficial produce y consume estos sobres localmente; el ensayo usa loopback y el despliegue exige la opción explícita --public-network con TLS. `auth/challenge` devuelve un desafío de firma con dominio `KARATTY-PUBLIC-REGISTER-v1`; `auth/proof` lo consume en un solo intento y exige la firma de la nueva clave. La respuesta incluye una sesión temporal y un código de recuperación de 192 bits que se muestra una sola vez. En modo invitación, el registro también entrega ese código. Para reemplazar una clave perdida, `recovery/start` recibe el seudónimo y la clave pública nueva; `recovery/complete` exige la firma de esa clave y el código guardado. Al completar, revoca todas las claves y sesiones anteriores y rota el código. Los desafíos vencen en dos minutos. La respuesta de inicio de recuperación no revela si existe el seudónimo.
+## E2EE key distribution
 
-El prototipo SSH usa handshake de clave pública y una sesión de dominio por canal SSH. Shell con PTY abre una TUI en el servidor. Comandos permitidos: `list`, `requests`, `direct USERNAME`, `decline USERNAME`, `block USERNAME`, `unblock USERNAME`, `history CONVERSATION AFTER`, `send CONVERSATION CLIENT_ID` con cuerpo por stdin. No se ejecutan comandos del sistema. **Este acceso no es E2EE y queda fuera de la alpha pública.** El servidor rechaza la combinación `--public-signup` y `--ssh-host-key`.
+The experimental `e2ee` endpoints follow [ADR 0003](adr/0003-e2ee-1to1.md). `POST /device` requires an SSH-key signature over `KARATTY-E2EE-IDENTITY-v1\nUSER_ID\nED25519\nCURVE25519`. Each one-time key requires an Olm Ed25519 signature over `KARATTY-OTK-v1\nCURVE25519\nONE_TIME_KEY`. Keys use unpadded standard base64.
 
-`--public-signup` exige loopback salvo que se indique también `--public-network`; esta opción requiere TLS y rechaza `--dev` y TUI SSH remota. La configuración de instalación está en [deploy.md](deploy.md). La infraestructura y la operación pública siguen pendientes.
+Identities cannot be silently replaced; account recovery removes the old one. Only accepted direct-chat members can read/claim their peer's keys. Claimed keys cannot reactivate when uploaded again. The official client compares fingerprints through another channel, encrypts using Olm and stores ratchets in the encrypted local archive.
+
+## Open registration and envelopes
+
+`server --public-signup` disables invitation signup and registers pseudonyms with Ed25519 public keys, without email. It lists only direct chats and rejects channel history, events and sends even for older channels. Direct `body` values must be JSON envelopes with `version:1`, `session_id`, `sender_identity` and `message:{type,body}`; Olm key/body encoding is unpadded standard base64. The API validates **structure**, not whether a modified sender encrypted correctly. Official clients produce and consume envelopes locally.
+
+`auth/challenge` uses signing domain `KARATTY-PUBLIC-REGISTER-v1`; `auth/proof` consumes it in one attempt and requires the new key's signature. The response contains a temporary session and a 192-bit recovery code shown once. Invitation registration also returns that code.
+
+`recovery/start` takes a pseudonym and new public key; its response does not reveal whether the pseudonym exists. `recovery/complete` requires that key's signature and the saved code, revokes earlier keys/sessions and rotates the code. Challenges expire in two minutes.
+
+## Prototype SSH and listeners
+
+Prototype SSH authenticates public-key possession and creates a domain session per SSH channel. A PTY shell opens a server-side TUI. Allowed commands: `list`, `requests`, `direct USERNAME`, `decline USERNAME`, `block USERNAME`, `unblock USERNAME`, `history CONVERSATION AFTER`, `send CONVERSATION CLIENT_ID` with body on stdin. It does not execute system commands. **This access is not E2EE and is outside the alpha.** Combining `--public-signup` and `--ssh-host-key` is rejected.
+
+Open registration defaults to loopback. Explicit `--public-network` requires TLS and rejects `--dev` and a remote SSH TUI. See [local/LAN setup](quickstart.md) and the [future deployment plan](deploy.md). Hosted infrastructure/operations remain future work.
