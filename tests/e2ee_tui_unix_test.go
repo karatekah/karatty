@@ -140,7 +140,7 @@ func TestE2EEClientNativeTUI(t *testing.T) {
 	if _, err = aliceHTTP.Direct(f.ctx, "bob"); err != nil {
 		t.Fatal(err)
 	}
-	start := func(key, state string) *tuiProcess {
+	start := func(key, state, peer string) *tuiProcess {
 		cmd := exec.CommandContext(f.ctx, clientBin, "chat", "--server", f.http.URL, "--ca-cert", caPath, "--key", key, "--state-dir", state, "--crypto-bin", cryptoBin)
 		cmd.Env = append(os.Environ(), "TERM=xterm-256color", "NO_COLOR=1")
 		terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 30, Cols: 120})
@@ -162,14 +162,14 @@ func TestE2EEClientNativeTUI(t *testing.T) {
 		})
 		p.waitFor(t, func(text string) bool { return strings.Contains(text, "archivo local cifrado") })
 		p.typeLine(t, "native local passphrase")
-		// The initial room selection clears identityView. Wait for its first
-		// stream result so it cannot erase /myfingerprint before a render frame.
+		// The initial room selection clears identityView. Its tab must be on
+		// screen before /myfingerprint, even if the peer is not online yet.
 		p.waitFor(t, func(text string) bool {
-			return strings.Contains(text, "verify peer fingerprint outside Karatty:")
+			return strings.Contains(text, "["+peer+"]")
 		})
 		return p
 	}
-	alice, bob := start(aliceKey, aliceState), start(bobKey, bobState)
+	alice, bob := start(aliceKey, aliceState, "bob"), start(bobKey, bobState, "alice")
 	fingerprint := regexp.MustCompile(`Tu huella:\s*([0-9a-f]{64})`)
 	own := func(p *tuiProcess) string {
 		p.typeLine(t, "/myfingerprint")
