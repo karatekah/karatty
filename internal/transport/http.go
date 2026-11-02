@@ -17,24 +17,27 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/karatekah/termlink/internal/auth"
 	"github.com/karatekah/termlink/internal/chat"
+	"github.com/karatekah/termlink/internal/e2ee"
 	"github.com/karatekah/termlink/internal/security"
 	"github.com/karatekah/termlink/pkg/protocol"
 )
 
 type API struct {
-	Auth     *auth.Service
-	Chat     *chat.Service
-	Requests *security.Limiter
-	Streams  chan struct{}
-	Count    atomic.Uint64
-	Failures atomic.Uint64
-	ctx      context.Context
-	cancel   context.CancelFunc
+	Auth             *auth.Service
+	Chat             *chat.Service
+	Keys             *e2ee.Service
+	Requests         *security.Limiter
+	IdentityRequests *security.Limiter
+	Streams          chan struct{}
+	Count            atomic.Uint64
+	Failures         atomic.Uint64
+	ctx              context.Context
+	cancel           context.CancelFunc
 }
 
 func NewAPI(a *auth.Service, c *chat.Service) *API {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &API{Auth: a, Chat: c, Requests: security.NewLimiter(10, 30), Streams: make(chan struct{}, 64), ctx: ctx, cancel: cancel}
+	return &API{Auth: a, Chat: c, Keys: e2ee.New(c.DB), Requests: security.NewLimiter(10, 30), IdentityRequests: security.NewLimiter(1.0/60, 3), Streams: make(chan struct{}, 64), ctx: ctx, cancel: cancel}
 }
 func (a *API) Close() { a.cancel() }
 func token(r *http.Request) string {
@@ -116,6 +119,13 @@ func (a *API) Handler() http.Handler {
 			failure(w, err)
 			return
 		}
+		if in.Username != "" {
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+			if !a.IdentityRequests.Allow(host) {
+				failure(w, security.ErrLimited)
+				return
+			}
+		}
 		out, err := a.Auth.Challenge(r.Context(), in)
 		if err != nil {
 			failure(w, err)
@@ -136,8 +146,46 @@ func (a *API) Handler() http.Handler {
 		}
 		write(w, 200, out)
 	})
+	mux.HandleFunc("POST /v1/recovery/start", func(w http.ResponseWriter, r *http.Request) {
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if !a.IdentityRequests.Allow(host) {
+			failure(w, security.ErrLimited)
+			return
+		}
+		var in protocol.RecoveryStart
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		out, err := a.Auth.StartRecovery(r.Context(), in)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/recovery/complete", func(w http.ResponseWriter, r *http.Request) {
+		var in protocol.RecoveryProof
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		out, err := a.Auth.CompleteRecovery(r.Context(), in)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
 	mux.HandleFunc("DELETE /v1/session", func(w http.ResponseWriter, r *http.Request) {
 		if err := a.Auth.Logout(r.Context(), token(r)); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("DELETE /v1/account", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Auth.DeleteAccount(r.Context(), token(r)); err != nil {
 			failure(w, err)
 			return
 		}
@@ -160,6 +208,63 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		out, err := a.Chat.Direct(r.Context(), token(r), in.Username)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("GET /v1/direct/requests", func(w http.ResponseWriter, r *http.Request) {
+		out, err := a.Chat.DirectRequests(r.Context(), token(r))
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("DELETE /v1/direct/requests/{username}", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Chat.DeclineDirect(r.Context(), token(r), r.PathValue("username")); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("PUT /v1/direct/blocks/{username}", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Chat.BlockDirect(r.Context(), token(r), r.PathValue("username")); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("DELETE /v1/direct/blocks/{username}", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.Chat.UnblockDirect(r.Context(), token(r), r.PathValue("username")); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("POST /v1/e2ee/device", func(w http.ResponseWriter, r *http.Request) {
+		var in protocol.DeviceUpload
+		if err := decode(w, r, &in); err != nil {
+			failure(w, err)
+			return
+		}
+		if err := a.Keys.Upload(r.Context(), token(r), in); err != nil {
+			failure(w, err)
+			return
+		}
+		w.WriteHeader(204)
+	})
+	mux.HandleFunc("GET /v1/e2ee/peer/{username}", func(w http.ResponseWriter, r *http.Request) {
+		out, err := a.Keys.Peer(r.Context(), token(r), r.PathValue("username"), false)
+		if err != nil {
+			failure(w, err)
+			return
+		}
+		write(w, 200, out)
+	})
+	mux.HandleFunc("POST /v1/e2ee/peer/{username}/claim", func(w http.ResponseWriter, r *http.Request) {
+		out, err := a.Keys.Peer(r.Context(), token(r), r.PathValue("username"), true)
 		if err != nil {
 			failure(w, err)
 			return

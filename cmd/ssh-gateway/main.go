@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/karatekah/termlink/internal/auth"
 	"github.com/karatekah/termlink/internal/chat"
@@ -25,7 +26,7 @@ func run() error {
 	addr := flag.String("addr", "127.0.0.1:2222", "listen address")
 	key := flag.String("host-key", ".local/ssh_host_ed25519", "persistent host private key")
 	flag.Parse()
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	db, err := storage.Open(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {

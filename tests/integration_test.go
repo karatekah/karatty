@@ -359,7 +359,18 @@ func TestMembershipOrderDedupAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !dm.Pending || dm.ID != "" {
+		t.Fatal("direct request opened a chat without acceptance")
+	}
+	requests, err := bob.DirectRequests(f.ctx)
+	if err != nil || len(requests) != 1 || requests[0].Username != "alice" {
+		t.Fatal("direct request not visible to recipient", requests, err)
+	}
 	dm2, err := bob.Direct(f.ctx, "alice")
+	if err != nil || dm2.Pending || dm2.ID == "" {
+		t.Fatal("recipient could not accept direct", err)
+	}
+	dm, err = fresh.Direct(f.ctx, "bob")
 	if err != nil || dm.ID != dm2.ID {
 		t.Fatal("direct pair not canonical", err)
 	}
@@ -679,7 +690,7 @@ func TestSSHAndNativeAcceptance(t *testing.T) {
 	}()
 	select {
 	case text := <-rendered:
-		if !strings.Contains(text, "TERMLINK") || !strings.Contains(text, "Hola desde SSH") {
+		if !strings.Contains(text, "Karatty") || !strings.Contains(text, "Hola desde SSH") {
 			t.Fatal("TUI did not render persisted messages")
 		}
 	case <-time.After(10 * time.Second):
@@ -741,7 +752,7 @@ func TestNativeExecutable(t *testing.T) {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("CLI build: %v %s", err, out)
 	}
-	cmd := exec.CommandContext(f.ctx, binary, "history", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv)
+	cmd := exec.CommandContext(f.ctx, binary, "history", "--legacy", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("CLI history failed: %v %s", err, out)
@@ -759,7 +770,7 @@ func TestNativeExecutable(t *testing.T) {
 	_, bobKey, _ := f.register(t, "bob", conv)
 	addr, host := startSSH(t, f)
 	sshBob := sshConnect(t, addr, bobKey, host)
-	cmd = exec.CommandContext(f.ctx, binary, "send", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--id", "native-process-send", "--message-stdin")
+	cmd = exec.CommandContext(f.ctx, binary, "send", "--legacy", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--id", "native-process-send", "--message-stdin")
 	cmd.Stdin = strings.NewReader("native process message")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -775,7 +786,7 @@ func TestNativeExecutable(t *testing.T) {
 	if _, err = sshExec(t, sshBob, "send "+conv+" ssh-process-reply", "SSH reply to executable"); err != nil {
 		t.Fatal(err)
 	}
-	cmd = exec.CommandContext(f.ctx, binary, "history", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--after", "2")
+	cmd = exec.CommandContext(f.ctx, binary, "history", "--legacy", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--conversation", conv, "--after", "2")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("native reconnect: %v %s", err, out)
@@ -786,5 +797,12 @@ func TestNativeExecutable(t *testing.T) {
 	noArgs := exec.CommandContext(f.ctx, binary)
 	if err = noArgs.Run(); err == nil {
 		t.Fatal("CLI accepted missing key")
+	}
+	cmd = exec.CommandContext(f.ctx, binary, "delete-account", "--server", f.http.URL, "--ca-cert", caPath, "--key", keyPath, "--confirm-delete")
+	if out, err = cmd.CombinedOutput(); err != nil {
+		t.Fatalf("CLI account deletion failed: %v %s", err, out)
+	}
+	if _, err = c.List(f.ctx); err == nil {
+		t.Fatal("CLI deletion left the account session active")
 	}
 }

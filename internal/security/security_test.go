@@ -2,6 +2,25 @@ package security
 
 import "testing"
 
+func TestCiphertextEnvelopeShape(t *testing.T) {
+	key := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	body := "AAAAAAAAAAAAAAAAAAAAAA"
+	valid := `{"version":1,"session_id":"` + key + `","sender_identity":"` + key + `","message":{"type":0,"body":"` + body + `"}}`
+	if !Envelope(valid) {
+		t.Fatal("valid envelope rejected")
+	}
+	for _, invalid := range []string{
+		"plaintext", `{"version":1}`,
+		`{"version":2,"session_id":"` + key + `","sender_identity":"` + key + `","message":{"type":0,"body":"` + body + `"}}`,
+		`{"version":1,"session_id":"` + key + `","sender_identity":"` + key + `","message":{"type":2,"body":"` + body + `"}}`,
+		valid + ` {}`,
+	} {
+		if Envelope(invalid) {
+			t.Fatal("invalid envelope accepted")
+		}
+	}
+}
+
 func TestTerminalInputAndBounds(t *testing.T) {
 	for _, s := range []string{"", "   ", "hello\x1b[2J", "osc\x1b]52;c;SECRET\a", "line\nnext", "bidirectional\u202e", "\x9b31m", string([]byte{0xff})} {
 		if Body(s) {

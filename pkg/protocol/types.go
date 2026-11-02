@@ -12,19 +12,57 @@ type Challenge struct {
 	ID      string `json:"id"`
 	Payload string `json:"payload"`
 }
+type RecoveryStart struct {
+	Username  string `json:"username"`
+	PublicKey string `json:"public_key"`
+}
+type RecoveryProof struct {
+	Proof
+	RecoveryCode string `json:"recovery_code"`
+}
+type RecoveryResult struct {
+	RecoveryCode string `json:"recovery_code"`
+}
 type Proof struct {
 	ID        string `json:"id"`
 	Signature []byte `json:"signature"`
 }
 type Session struct {
-	Token     string    `json:"token"`
-	UserID    string    `json:"user_id"`
-	ExpiresAt time.Time `json:"expires_at"`
+	Token        string    `json:"token"`
+	UserID       string    `json:"user_id"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	RecoveryCode string    `json:"recovery_code,omitempty"`
+	PublicMode   bool      `json:"public_mode"`
 }
 type Conversation struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Kind string `json:"kind"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Closed  bool   `json:"closed"`
+	Pending bool   `json:"pending,omitempty"`
+}
+type DirectRequest struct {
+	Username  string    `json:"username"`
+	CreatedAt time.Time `json:"created_at"`
+}
+type OneTimeKey struct {
+	Key       string `json:"key"`
+	Signature string `json:"signature"`
+}
+type DeviceUpload struct {
+	IdentityEd    string       `json:"identity_ed"`
+	IdentityCurve string       `json:"identity_curve"`
+	SSHSignature  []byte       `json:"ssh_signature"`
+	OneTimeKeys   []OneTimeKey `json:"one_time_keys"`
+}
+type DeviceBundle struct {
+	UserID        string      `json:"user_id"`
+	Username      string      `json:"username"`
+	SSHKey        string      `json:"ssh_key"`
+	IdentityEd    string      `json:"identity_ed"`
+	IdentityCurve string      `json:"identity_curve"`
+	SSHSignature  []byte      `json:"ssh_signature"`
+	OneTimeKey    *OneTimeKey `json:"one_time_key,omitempty"`
 }
 type Send struct {
 	ClientID string `json:"client_id"`

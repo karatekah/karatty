@@ -1,11 +1,22 @@
 # Alcance y decisiones de producto
 
-Sprint 1: flujo funcional verificable, entorno local y CI. La alpha v0.1 requiere además recuperación, borrado de cuentas, política de datos, restauración de respaldos y revisión de límites operativos. No se abrirá un servicio en este sprint.
+La primera alpha es software para usar en un equipo o una red local: servidor propio con PostgreSQL, clientes TUI locales y directos 1:1 con aceptación. No requiere contratar dominio, VPS ni correo. El alojamiento de un servicio del proyecto en Internet queda para una fase futura; `karatty.dev` es el dominio elegido, todavía sin comprar.
 
-Decisión del usuario (2026-10-31): retención de mensajes de **30 días** para la futura alpha, con borrado de contenido e identificadores y deduplicación garantizada solo durante ese plazo. El historial ya oculta mensajes vencidos y el servidor dispone de purga por lotes, manual o programada con `--retention-30d`. La programación permanece desactivada por defecto en desarrollo. Antes de activar una alpha faltan comunicación al usuario, vencimiento/restauración de respaldos y pruebas operativas de la programación.
+## Alpha local y LAN
 
-Horizonte original: unas 12 semanas para validar el producto, estimación sin fecha prometida. Público: desarrolladores y equipos técnicos pequeños. v0.2 perfiles, búsqueda y notificaciones; v0.3 archivos e integraciones; v0.4 bots/API; v1.0 organizaciones y facturación. Community/Pro/Teams/self-hosted son hipótesis. Precio, identidad visual y dominio siguen abiertos.
+- Identidad seudónima con clave SSH Ed25519, sin correo ni nombre real. Recuperación con código guardado fuera del equipo.
+- E2EE con secreto futuro acotado según el [ADR 0003](adr/0003-e2ee-1to1.md); comparación de huellas por otro medio y nueva verificación al cambiar la identidad.
+- Archivo local protegido con frase secreta, reintentos persistidos y un dispositivo por cuenta.
+- Retención de 720 horas: se ocultan y purgan cuerpos e identificadores vencidos; la deduplicación se garantiza solo durante esos 30 días. La purga se activa automáticamente en `--public-signup`. Las copias externas y equipos apagados tienen límites distintos.
+- Código, documentación y paquetes del cliente distribuidos en GitHub bajo Apache-2.0. El [registro de publicación](release.md) describe el proceso y los límites de esta alpha local.
+- Pruebas reproducibles y límites en [verification.md](verification.md), incluido el ensayo de dos TUI Windows tras restaurar el ejecutable desde la cuarentena de Defender. La LAN entre dos equipos físicos y el comportamiento de la detección en otras instalaciones siguen sin comprobarse.
 
-TERMLINK es un nombre provisional. Existen [getterm.link](https://www.getterm.link/) y [DimitriGeelen/termlink](https://github.com/DimitriGeelen/termlink). Hace falta investigar nombre, marca y dominio antes de publicación comercial. No se afirma disponibilidad jurídica ni se registra dominio.
+## Servicio alojado futuro
 
-Antes de prometer E2EE, evaluar un diseño auditado y Matrix. La validación comercial medirá retención, retorno e invitaciones mediante agregados, sin inspeccionar mensajes. La adecuación legal de una operación comercial queda pendiente de revisión actual de fuentes oficiales y asesoría aplicable; este repositorio no afirma cumplimiento.
+La compra del dominio, VPS, bucket, buzones, políticas con identidad del operador y pruebas de respaldo/restauración remota pertenecen a este hito. No bloquean por sí mismas la distribución de la alpha local/LAN. Antes de ofrecer alojamiento, deben cumplirse las condiciones de [operación](operations.md) y [despliegue](deploy.md). La ventana máxima elegida para respaldos es de siete días adicionales; debe comprobarse en la infraestructura real antes de prometerla.
+
+## Después de la alpha
+
+Grupos, SSH remoto con un modelo de cifrado adecuado, múltiples dispositivos, adjuntos, búsqueda, notificaciones e integraciones requieren diseño y pruebas propios. No tienen una fecha comprometida. Los posibles planes Community/Pro/Teams siguen siendo hipótesis.
+
+Karatty es el nombre de trabajo elegido por el usuario. La búsqueda preliminar registró un juego [Karatty VR](https://usb50-zx-spectrum.itch.io/ka). RDAP respondió como no registrado el 31 de octubre de 2026; esto no reserva el dominio ni garantiza su compra. El [buscador de Indecopi](https://pi.indecopi.gob.pe/buscatumarca/#/inicio) mostró cero marcas vigentes en búsqueda precisa para «Karatty» en clases 9, 38 y 42 el 1 de noviembre de 2026; la búsqueda amplia devolvió 200 resultados. La revisión de similitudes sigue pendiente. El módulo Go y el repositorio conservan `termlink` por continuidad técnica.

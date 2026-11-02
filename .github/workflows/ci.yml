@@ -1,8 +1,45 @@
 name: CI
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'
 permissions:
   contents: read
 jobs:
+  crypto:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: termlink
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: termlink_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TERMLINK_TEST_DATABASE_URL: postgres://termlink:test-only@localhost:5432/termlink_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - run: cargo +1.99.1 fmt --manifest-path crypto/Cargo.toml --check
+      - run: cargo +1.99.1 test --locked --manifest-path crypto/Cargo.toml
+      - run: cargo +1.99.1 build --locked --release --manifest-path crypto/Cargo.toml
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+      - run: go test -count=1 ./pkg/cryptobridge
+        env:
+          KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
+      - run: go test -count=1 ./tests -run '^TestE2EEClientExchangeAndLocalPassphrase$' -v
+        env:
+          KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
+      - run: go test -count=5 ./tests -run '^TestE2EEClientNativeTUI$' -v
+        env:
+          KARATTY_CRYPTO_BIN: ${{ github.workspace }}/crypto/target/release/karatty-crypto
   test:
     runs-on: ubuntu-latest
     services:
@@ -26,18 +63,81 @@ jobs:
       - run: go mod download
       - run: go vet ./...
       - run: go test -race -count=1 ./...
+      - name: Validate deployment units and shell syntax
+        run: |
+          bash -n scripts/backup.sh scripts/restore-check.sh deployments/renew-certificate.sh
+          RENEWED_DOMAINS=example.org bash deployments/renew-certificate.sh
+          go build -o .local/server ./cmd/server
+          sudo install -d /opt/karatty
+          sudo install -m 0755 .local/server /opt/karatty/server
+          sudo install -m 0755 scripts/backup.sh /opt/karatty/backup.sh
+          systemd-analyze verify deployments/systemd/karatty.service deployments/systemd/karatty-backup.service deployments/systemd/karatty-backup.timer
       - run: test -z "$(gofmt -l .)"
   build:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.3'
       - run: go build ./cmd/...
+      - run: go test -count=1 ./pkg/localstate
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Check native encrypted bundle
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1
+          $release = 'dist/v0.1.0-alpha.1'
+          $targetOS = (& go env GOOS).Trim()
+          $targetArch = (& go env GOARCH).Trim()
+          $ext = if ($targetOS -eq 'windows') { '.exe' } else { '' }
+          $bundle = "karatty-v0.1.0-alpha.1-$targetOS-$targetArch"
+          $client = Join-Path $release "$bundle/karatty$ext"
+          $crypto = Join-Path $release "$bundle/karatty-crypto$ext"
+          if (!(Test-Path $crypto)) { throw 'missing crypto executable' }
+          if ((& $client version) -ne 'Karatty v0.1.0-alpha.1') { throw 'wrong client version' }
+          $hashLines = @(Get-Content (Join-Path $release "$bundle/SHA256SUMS"))
+          if ($hashLines.Count -ne 2) { throw 'wrong number of binary checksums' }
+          foreach ($line in $hashLines) {
+            if ($line -notmatch '^([a-f0-9]{64})  (karatty(?:-crypto)?(?:\.exe)?)$') { throw 'invalid checksum line' }
+            $actual = (Get-FileHash (Join-Path $release "$bundle/$($Matches[2])") -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $Matches[1]) { throw 'checksum mismatch' }
+          }
+          $outer = @(Get-Content (Join-Path $release 'SHA256SUMS'))
+          if ($outer.Count -ne 1 -or $outer[0] -notmatch '^([a-f0-9]{64})  (karatty-v0\.1\.0-alpha\.1-[^/\\]+\.(?:zip|tar\.gz))$') { throw 'invalid archive checksum' }
+          $actual = (Get-FileHash (Join-Path $release $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $Matches[1]) { throw 'archive checksum mismatch' }
+          $archive = Join-Path $release $Matches[2]
+          $extracted = '.local/package-check'
+          New-Item -ItemType Directory -Path $extracted -Force | Out-Null
+          if ($targetOS -eq 'windows') {
+            Expand-Archive -LiteralPath $archive -DestinationPath $extracted
+          } else {
+            & tar -xzf $archive -C $extracted
+            if ($LASTEXITCODE -ne 0) { throw 'cannot extract release' }
+          }
+          $installed = Join-Path $extracted $bundle
+          if ((& (Join-Path $installed "karatty$ext") version) -ne 'Karatty v0.1.0-alpha.1') { throw 'extracted client failed' }
+          foreach ($name in @('LICENSE','THIRD_PARTY_NOTICES.md','BUILD_INFO','dependency-locks/Cargo.lock')) {
+            if (!(Test-Path (Join-Path $installed $name))) { throw "missing release file: $name" }
+          }
+          if (@(Get-ChildItem (Join-Path $installed 'licenses') -Directory).Count -lt 50) { throw 'dependency licenses missing' }
+          $env:KARATTY_CRYPTO_BIN = (Resolve-Path (Join-Path $installed "karatty-crypto$ext")).Path
+          & go test -count=1 ./pkg/cryptobridge
+          if ($LASTEXITCODE -ne 0) { throw 'extracted crypto bridge failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: karatty-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/v0.1.0-alpha.1/*.zip
+            dist/v0.1.0-alpha.1/*.tar.gz
+            dist/v0.1.0-alpha.1/SHA256SUMS
+          if-no-files-found: error
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -46,3 +146,16 @@ jobs:
         with:
           go-version: '1.27.3'
       - run: bash scripts/docker-smoke.sh
+  vulnerabilities:
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+      - run: cargo audit --file crypto/Cargo.lock

@@ -83,7 +83,7 @@ func NewSSH(a *auth.Service, c *chat.Service, hostKey string) (*sshserver.Server
 		}
 		_, _, pty := sess.Pty()
 		if !pty {
-			_, _ = io.WriteString(sess, "TERMLINK requires a terminal. Use ssh -t, or list/history/send commands.\n")
+			_, _ = io.WriteString(sess, "Karatty requiere una terminal. Usa ssh -t o los comandos list/requests/direct/history/send.\n")
 			_ = sess.Exit(1)
 			return
 		}
@@ -106,6 +106,19 @@ func sshCommand(ctx context.Context, s sshserver.Session, b Local) {
 	switch {
 	case len(args) == 1 && args[0] == "list":
 		out, err = b.List(ctx)
+	case len(args) == 1 && args[0] == "requests":
+		out, err = b.DirectRequests(ctx)
+	case len(args) == 2 && args[0] == "direct":
+		out, err = b.Direct(ctx, args[1])
+	case len(args) == 2 && args[0] == "decline":
+		err = b.DeclineDirect(ctx, args[1])
+		out = map[string]bool{"ok": err == nil}
+	case len(args) == 2 && args[0] == "block":
+		err = b.BlockDirect(ctx, args[1])
+		out = map[string]bool{"ok": err == nil}
+	case len(args) == 2 && args[0] == "unblock":
+		err = b.UnblockDirect(ctx, args[1])
+		out = map[string]bool{"ok": err == nil}
 	case len(args) == 3 && args[0] == "history":
 		var after int64
 		after, err = strconv.ParseInt(args[2], 10, 64)

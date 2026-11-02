@@ -1,43 +1,83 @@
-# TERMLINK (nombre provisional)
+# Karatty
 
-Mensajería propia desde la terminal, con un cliente nativo y acceso SSH. Repositorio privado de trabajo de karatekah. Sin integración ni código de WhatsApp o wacon-mcp.
+Mensajería desde tu terminal: directos 1:1 con aceptación, identidad seudónima mediante clave SSH y cifrado de extremo a extremo en una TUI local.
 
-## Sprint 1
+**[v0.1.0-alpha.1](https://github.com/karatekah/termlink/releases/tag/v0.1.0-alpha.1) es una alpha experimental para uso local.** El código y los paquetes del cliente se distribuyen bajo Apache-2.0. No necesitas dominio, VPS ni correo: una máquina ejecuta el servidor y PostgreSQL, y cada participante instala el cliente. La configuración de LAN está documentada, pero la conversación entre dos equipos físicos aún no se ha comprobado. El alojamiento en Internet con `karatty.dev` queda para el futuro.
 
-Objetivo: dos usuarios invitados conversan entre SSH y el cliente instalable, salen y recuperan el historial desde PostgreSQL; un tercero sin membresía no puede leer, enviar ni suscribirse.
+## Qué incluye la alpha
 
-Go, monolito modular, PostgreSQL y Bubble Tea v2/Bubbles v2/Wish v2. Ambos accesos ejecutan las mismas operaciones de dominio y comparten TUI. HTTPS/WSS y SSH protegen el transporte; **el servidor puede leer los mensajes; no hay E2EE**.
+- Registro sin correo ni nombre real, con prueba de posesión de una clave Ed25519. Recuperación con un código guardado fuera del equipo.
+- Chats directos que requieren aceptación; solicitudes, rechazo, bloqueo y conversaciones cerradas de solo lectura.
+- Olm 1:1 con Double Ratchet mediante vodozemac 0.11.1. La TUI exige comparar la huella del contacto por otro medio y verificarla de nuevo si cambia.
+- Archivo local cifrado con frase secreta, Argon2id y XChaCha20-Poly1305. Los envíos pendientes se guardan antes de transmitirlos y pueden recuperarse tras reiniciar.
+- Sobres opacos en PostgreSQL, historial por secuencia, reconexión y deduplicación durante los 30 días de retención.
+- Eliminación de cuenta y archivos locales, purga de mensajes vencidos y herramientas de respaldo cifrado y restauración.
 
-## Ejecutar
+## Probar y usar
 
-Sigue la [guía local para Windows, Linux y macOS](docs/quickstart.md). Incluye PostgreSQL con Docker, certificados TLS locales, creación de invitaciones, acceso nativo/SSH y prueba de un tercero sin membresía. CI comprueba el arranque en Docker y el flujo HTTPS con el cliente nativo; las pruebas de integración cubren SSH por separado. No hay servidor público ni servicios contratados.
+Para ensayar ahora, sigue la [guía local y LAN](docs/quickstart.md): compilar, iniciar PostgreSQL y el servidor con TLS, y conversar con dos cuentas. La [guía de instalación y primer uso](docs/install.md) explica los paquetes, claves, huellas, reintentos y recuperación. La [matriz de verificación](docs/verification.md) distingue las pruebas automatizadas de las realizadas en equipos físicos.
 
-```sh
-go build ./cmd/...
-go vet ./...
-# Con una base PostgreSQL local y TERMLINK_TEST_DATABASE_URL configurado:
-go test -count=1 ./...
+El flujo dentro de la TUI es:
+
+```text
+Alice: /direct bob
+Bob:   /requests
+Bob:   /direct alice
+Ambos: /myfingerprint
+       Comparan sus huellas por otro medio.
+Alice: /verify bob HUELLA_DE_BOB
+Bob:   /verify alice HUELLA_DE_ALICE
 ```
 
-## Implementado
+Después pueden escribir mensajes. Tab cambia de chat, Ctrl+L recarga y Ctrl+C sale. `/pending` muestra envíos guardados sin confirmar; `/retry ID` conserva el mismo sobre al reintentarlos. El ACK confirma persistencia en el servidor, no lectura por el destinatario.
 
-- Invitaciones con caducidad/usos y registro con prueba de posesión Ed25519; desafío de un solo uso, sesión temporal y revocación administrativa.
-- Canales asignados por invitación y chats directos; autorización por sesión/clave/usuario/membresía en cada operación.
-- Mensajes persistentes, secuencia transaccional por conversación, ACK de commit y deduplicación durante 30 días, con conflicto al cambiar el contenido de un reintento dentro de ese plazo.
-- Historial paginado y eventos WSS con reconexión por secuencia; gateway Wish v2 autenticado al mismo núcleo y TUI Bubble Tea v2/Bubbles v2 compartida.
-- Límites de tamaño, tasas, conexiones, páginas y escritura; controles de terminal rechazados en entrada y filtrados en pantalla. Logs operativos sin cuerpos/credenciales.
-- Pruebas de integración con PostgreSQL real, TLS, WebSocket, cliente ejecutable y SSH con PTY; CI con detector de carreras en Linux, compilación Windows/Linux/macOS y prueba Docker.
+## Seguridad y límites
 
-El cliente conserva tokens solo en memoria; solicita la clave en cada arranque. La TUI retiene 500 mensajes en pantalla y muestra las primeras 100 conversaciones. El registro inicial se realiza con el CLI; después SSH no requiere instalar TERMLINK. El tiempo real usa sondeos de 250 ms del registro PostgreSQL; no necesita Redis.
+La alpha usa solo la TUI instalada localmente y directos 1:1. El prototipo anterior por invitaciones y la TUI remota por SSH siguen en el código para desarrollo, envían texto legible al servidor y se excluyen de la alpha.
 
-## Pendiente antes de abrir la alpha
+**Windows Defender:** clasificó una compilación del servidor como `Behavior:Win32/DefenseEvasion.A!ml`. En el equipo de prueba funcionó después de que su propietario restaurara el archivo de cuarentena, con Defender activo. No se ha confirmado un falso positivo ni validado esa detección en otros equipos. La descarga del cliente no incluye el servidor. Consulta la [evidencia y sus límites](docs/verification.md) antes de usar la alpha; no desactives la protección para instalarla.
 
-Recuperación y segunda clave, eliminación de cuentas, activación y prueba operativa de la purga de **30 días** decidida por el usuario, retención/restauración de respaldos y revisión de seguridad/privacidad. El historial ya oculta mensajes vencidos; la purga automática requiere `server --retention-30d` y no se activa por defecto en desarrollo. No hay archivos, búsqueda, notificaciones, organizaciones ni facturación. El [roadmap](docs/roadmap.md) distingue estas tareas del sprint. TERMLINK tiene conflictos de nombre conocidos y requiere investigación de marca/dominio antes de publicación comercial.
+El secreto futuro protege mensajes cuyas claves ya se consumieron y borraron del ratchet. No protege un archivo local desbloqueado, una copia antigua del estado o un equipo comprometido. La verificación de huellas por otro medio es necesaria frente a sustituciones de identidad en el primer contacto. El servidor conoce los metadatos de entrega; un seudónimo no garantiza anonimato absoluto.
 
-## Estructura y documentación
+No hay auditoría independiente de Karatty. La [matriz de verificación](docs/verification.md) explica lo probado y sus límites. La retención es de 720 horas; el cliente solo puede limpiar un equipo cuando se usa. El archivo local está acotado a 16 MiB, la pantalla a 500 mensajes y el listado a 100 conversaciones. La alpha admite un dispositivo por cuenta. Grupos, SSH remoto, adjuntos, búsqueda y notificaciones quedan para después.
 
-`cmd/server`, `cmd/ssh-gateway`, `cmd/termlink`; `internal/auth`, `chat`, `storage`, `security`, `transport`; `pkg/tui`, `client`, `protocol`; `migrations`, `tests`, `deployments`, `docs`. Los límites reales de paquetes se explican en el [ADR 0001](docs/adr/0001-foundation.md), y la autenticación en el [ADR 0002](docs/adr/0002-authentication.md).
+## Arquitectura y tecnologías
 
-[Protocolo](docs/protocol.md) · [Seguridad](docs/security.md) · [Roadmap](docs/roadmap.md) · [Fuentes y versiones](docs/dependencies.md)
+| Parte | Tecnología |
+| --- | --- |
+| Cliente y API | Go 1.27.3, monolito modular y contratos JSON compartidos |
+| Interfaz | Bubble Tea v2 y Bubbles v2 |
+| E2EE local | Rust 1.99.1, vodozemac 0.11.1 y Olm v1 |
+| Archivo local | Argon2id y XChaCha20-Poly1305, bloqueo y reemplazo de archivo |
+| Transporte | HTTPS y WSS; autorización por operación |
+| Persistencia | PostgreSQL 17.11 y pgx, secuencias y ACK transaccionales |
+| Operación prevista | Linux/systemd, TLS y copias `pg_dump` cifradas con `age` |
 
-Código privado sin licencia pública concedida por este repositorio. La elección de licencia comercial o de distribución es una decisión pendiente del propietario. Las dependencias conservan sus licencias propias.
+La [arquitectura](docs/architecture.md) describe paquetes y flujos. El [ADR de E2EE](docs/adr/0003-e2ee-1to1.md) documenta identidades, ratchet, archivo y modelo de amenazas. El módulo y repositorio conservan `termlink` como identificador interno.
+
+## Documentación
+
+| Necesidad | Guía |
+| --- | --- |
+| Instalar, conversar, actualizar y borrar | [Primer uso](docs/install.md) |
+| Ejecutar y desarrollar localmente | [Entorno local](docs/quickstart.md) · [Contribuir](CONTRIBUTING.md) |
+| Entender el sistema | [Arquitectura](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Dependencias](docs/dependencies.md) |
+| Revisar seguridad | [Garantías y límites](docs/security.md) · [Pruebas](docs/verification.md) · [Reportes privados](SECURITY.md) |
+| Alojar en Internet en el futuro | [Despliegue previsto](docs/deploy.md) · [Operación y respaldos](docs/operations.md) |
+| Revisar la publicación | [Release](docs/release.md) · [Cambios](CHANGELOG.md) · [Roadmap](docs/roadmap.md) |
+| Borradores para un futuro servicio alojado | [Privacidad](docs/privacy-draft.md) · [Condiciones](docs/terms-draft.md), pendientes de datos del operador |
+
+## Desarrollo
+
+```sh
+go mod verify
+cargo test --locked --manifest-path crypto/Cargo.toml
+cargo build --locked --release --manifest-path crypto/Cargo.toml
+go vet ./...
+go test -count=1 ./...
+go build ./cmd/...
+```
+
+Las pruebas de integración necesitan `TERMLINK_TEST_DATABASE_URL` hacia una base de desarrollo y `KARATTY_CRYPTO_BIN` con la ruta absoluta al puente compilado. Sin esas variables se omiten las pruebas que las requieren; una ejecución local verde no sustituye CI. Actions prueba PostgreSQL real, detector de carreras, Docker, Go y Rust, paquetes extraídos en tres sistemas y avisos de vulnerabilidades de las dependencias.
+
+El código propio usa [Apache-2.0](LICENSE). Los paquetes conservan los textos y atribuciones de terceros junto con sus versiones fijadas.

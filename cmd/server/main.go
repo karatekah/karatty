@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,9 +47,14 @@ func run() error {
 	revokeKey := flag.String("revoke-key", "", "admin: key fingerprint")
 	revokeMember := flag.String("revoke-member", "", "admin: user ID")
 	retention30d := flag.Bool("retention-30d", false, "purge messages older than 30 days at startup and hourly")
+	publicSignup := flag.Bool("public-signup", false, "allow pseudonymous SSH-key registration without email")
+	publicNetwork := flag.Bool("public-network", false, "allow the E2EE alpha API beyond loopback over TLS (LAN or Internet)")
 	purgeExpired := flag.Bool("purge-expired-messages", false, "admin: purge messages older than 30 days once")
 	flag.Parse()
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	if err := validatePublicMode(*addr, *cert, *key, *hostKey, *publicSignup, *publicNetwork, *dev); err != nil {
+		return err
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	db, err := storage.Open(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -58,10 +64,15 @@ func run() error {
 	if err = storage.Migrate(ctx, db); err != nil {
 		return err
 	}
-	a := &auth.Service{DB: db}
+	a := &auth.Service{DB: db, PublicSignup: *publicSignup}
 	c := chat.New(db)
+	c.DirectOnly = *publicSignup
+	c.CiphertextOnly = *publicSignup
 	switch {
 	case *channel != "":
+		if *publicSignup {
+			return security.ErrInvalid
+		}
 		id, e := c.Channel(ctx, *channel)
 		if e == nil {
 			fmt.Println(id)
@@ -116,10 +127,10 @@ func run() error {
 			result <- server.Serve(listener)
 		}
 	}()
-	if *retention30d {
+	if *retention30d || *publicSignup {
 		go runRetention(ctx, db)
 	}
-	slog.Info("termlink started", "address", *addr, "ssh_enabled", *hostKey != "")
+	slog.Info("karatty started", "address", *addr, "ssh_enabled", *hostKey != "")
 	select {
 	case <-ctx.Done():
 		shutdown, done := context.WithTimeout(context.Background(), 5*time.Second)
@@ -143,6 +154,24 @@ func runRetention(ctx context.Context, db *pgxpool.Pool) {
 			slog.Error("message retention purge failed")
 		} else if err == nil {
 			slog.Info("message retention purge finished", "deleted", count)
+		}
+		requests, requestErr := storage.PurgeExpiredDirectRequests(ctx, db)
+		if requestErr != nil && ctx.Err() == nil {
+			slog.Error("direct request purge failed")
+		} else if requestErr == nil {
+			slog.Info("direct request purge finished", "deleted", requests)
+		}
+		challenges, challengeErr := storage.PurgeExpiredRecoveryChallenges(ctx, db)
+		if challengeErr != nil && ctx.Err() == nil {
+			slog.Error("recovery challenge purge failed")
+		} else if challengeErr == nil {
+			slog.Info("recovery challenge purge finished", "deleted", challenges)
+		}
+		authRecords, authErr := storage.PurgeExpiredAuthRecords(ctx, db)
+		if authErr != nil && ctx.Err() == nil {
+			slog.Error("auth record purge failed")
+		} else if authErr == nil {
+			slog.Info("auth record purge finished", "deleted", authRecords)
 		}
 		select {
 		case <-ctx.Done():
