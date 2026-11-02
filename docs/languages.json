@@ -1,0 +1,44 @@
+{
+  "primaryLanguage": "en",
+  "languages": [
+    {
+      "code": "en",
+      "name": "English"
+    },
+    {
+      "code": "es",
+      "name": "Español"
+    },
+    {
+      "code": "it",
+      "name": "Italiano"
+    }
+  ],
+  "pages": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "crypto/README.md",
+    "third_party/README.md",
+    "docs/architecture.md",
+    "docs/security.md",
+    "docs/protocol.md",
+    "docs/adr/0001-foundation.md",
+    "docs/adr/0002-authentication.md",
+    "docs/adr/0003-e2ee-1to1.md",
+    "docs/dependencies.md",
+    "docs/interface-check.md",
+    "docs/quickstart.md",
+    "docs/install.md",
+    "docs/verification.md",
+    "docs/roadmap.md",
+    "docs/release.md",
+    "docs/deploy.md",
+    "docs/operations.md",
+    "docs/terms-draft.md",
+    "docs/privacy-draft.md",
+    "docs/translations.md",
+    "docs/releases/v0.1.0-alpha.1.md"
+  ]
+}

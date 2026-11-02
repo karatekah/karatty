@@ -19,10 +19,10 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/karatekah/termlink/pkg/client"
-	"github.com/karatekah/termlink/pkg/protocol"
-	"github.com/karatekah/termlink/pkg/secureclient"
-	"github.com/karatekah/termlink/pkg/tui"
+	"github.com/karatekah/karatty/pkg/client"
+	"github.com/karatekah/karatty/pkg/protocol"
+	"github.com/karatekah/karatty/pkg/secureclient"
+	"github.com/karatekah/karatty/pkg/tui"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 )

@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/karatekah/termlink/internal/auth"
-	"github.com/karatekah/termlink/internal/chat"
-	"github.com/karatekah/termlink/internal/security"
-	"github.com/karatekah/termlink/internal/storage"
-	"github.com/karatekah/termlink/internal/transport"
+	"github.com/karatekah/karatty/internal/auth"
+	"github.com/karatekah/karatty/internal/chat"
+	"github.com/karatekah/karatty/internal/security"
+	"github.com/karatekah/karatty/internal/storage"
+	"github.com/karatekah/karatty/internal/transport"
 )
 
 func main() {

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/karatekah/termlink/internal/storage"
-	"github.com/karatekah/termlink/pkg/protocol"
+	"github.com/karatekah/karatty/internal/storage"
+	"github.com/karatekah/karatty/pkg/protocol"
 	"golang.org/x/crypto/ssh"
 )
 

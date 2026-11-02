@@ -1,9 +1,11 @@
-# ADR 0002 — Invitación y prueba de posesión
+# ADR 0002 — Invitations and possession proof
 
-Estado: aceptado. Fecha: 2026-10-31.
+**English** · [Español](../es/adr/0002-authentication.md) · [Italiano](../it/adr/0002-authentication.md)
 
-El registro y login del cliente firman un desafío aleatorio de un solo uso, con dominio TERMLINK, caducidad corta y clave pública ligada en PostgreSQL. La firma SSH se verifica antes de consumir la invitación y registrar la clave. La invitación tiene hash, fecha límite y usos restantes; se consume bajo bloqueo en la misma transacción. No se envían claves privadas al servidor.
+Accepted, 2026-10-31. Historical invitation-prototype decision.
 
-SSH verifica la posesión durante el handshake y solo admite claves previamente asociadas. El prototipo permite registro por invitación y, después, acceso SSH sin instalar el cliente. Las invitaciones pueden asignar una membresía inicial a un canal. Este flujo SSH queda fuera de la primera alpha pública. El administrador opera mediante acceso local a la base, no hay endpoint público de administración.
+Registration/login signs a random, single-use, short-lived challenge with the TERMLINK authentication domain and a public key bound in PostgreSQL. That legacy signing domain retains its spelling for protocol compatibility. An SSH signature is checked before consuming an invitation and registering the key. The hashed invitation has an expiry and remaining uses and is consumed under a lock in the same transaction. Private keys are never sent to the server.
 
-Tokens aleatorios de sesión solo en memoria del cliente y hashes en servidor. No se guardan archivos de tokens. Claves cifradas se desbloquean con entrada oculta; el usuario protege el archivo mediante permisos del sistema. Una evolución posterior añadió registro seudónimo sin invitación y recuperación autoservicio mediante código de un solo uso; consulta [arquitectura](../architecture.md) y [protocolo](../protocol.md). Integración con almacenes del SO, múltiples dispositivos y rotación asistida siguen pendientes.
+SSH proves possession at handshake and accepts only previously associated keys. The prototype allows invitation signup followed by SSH access without installing a client; invitations can grant initial channel membership. This remote SSH flow is excluded from the alpha. Administration uses local database access rather than a public administration endpoint.
+
+Random session tokens stay in client memory; the server stores hashes. Token files are not saved. Encrypted keys unlock through hidden terminal input and depend on filesystem permissions. Later work added email-free pseudonymous signup and self-service recovery using a one-use code; see [architecture](../architecture.md) and [protocol](../protocol.md). OS credential-store integration, multiple devices and assisted rotation remain future work.

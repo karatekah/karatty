@@ -1,5 +1,9 @@
-# Textos de licencia complementarios
+# Supplemental license texts
 
-Los paquetes de `matrix-pickle` y `matrix-pickle-derive` 0.2.3 no incluyen el archivo de licencia del workspace en los crates publicados. `matrix-pickle-0.2.3/LICENSE` es una copia sin cambios de [su fuente en el commit 3eb007eae1ca87e3a3683c99a58fd19289abae52](https://github.com/matrix-org/matrix-pickle/blob/3eb007eae1ca87e3a3683c99a58fd19289abae52/LICENSE), el commit declarado en `.cargo_vcs_info.json` de ambos crates. El empaquetador comprueba versión y commit antes de usarlo.
+**English** · [Español](../docs/es/third_party/README.md) · [Italiano](../docs/it/third_party/README.md)
 
-El resto de textos se copia desde las dependencias fijadas al construir cada paquete. `r-efi` incluye su permiso MIT y atribuciones en `AUTHORS`. Los avisos de las bibliotecas estándar proceden de los toolchains instalados. `scripts/collect-licenses.ps1` crea el índice y conserva estos textos dentro de la descarga; un cambio de dependencia que no incluya licencia hace fallar el empaquetado.
+The published crates for `matrix-pickle` and `matrix-pickle-derive` 0.2.3 omit the workspace license file. `matrix-pickle-0.2.3/LICENSE` is an unchanged copy from [source commit 3eb007eae1ca87e3a3683c99a58fd19289abae52](https://github.com/matrix-org/matrix-pickle/blob/3eb007eae1ca87e3a3683c99a58fd19289abae52/LICENSE), the commit declared in both crates' `.cargo_vcs_info.json`. Packaging checks version and commit before using it.
+
+Other license texts are copied from pinned dependencies while building each package. `r-efi` carries its MIT permission and attribution in `AUTHORS`. Standard-library notices come from the installed toolchains. `scripts/collect-licenses.ps1` creates the index and preserves these texts in the download; packaging fails if a dependency has no license text.
+
+Original license and copyright files remain authoritative and are not translated.

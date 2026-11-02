@@ -1,20 +1,22 @@
-# Verificación de la interfaz del sprint
+# Initial sprint interface review
 
-Aplicación de `make-interfaces-feel-better`, alcance: TUI compartida Bubble Tea v2/Bubbles v2. Estilo: texto monoespaciado, separadores y estados escritos; sin sistema CSS ni animaciones propias. No es una revisión visual de Windows Terminal/macOS/Linux completa.
+**English** · [Español](es/interface-check.md) · [Italiano](it/interface-check.md)
 
-| Categoría | Evidencia inspeccionada | Resultado |
+The initial review used `make-interfaces-feel-better` for the shared Bubble Tea v2/Bubbles v2 TUI: monospaced text, separators and written status, without CSS or custom animation. It is not a complete visual/accessibility review of Windows/macOS/Linux terminals.
+
+| Category | Evidence | Result |
 | --- | --- | --- |
-| Tipografía | TUI usa ajuste al ancho con ansi.Wrap/Truncate y ancho del terminal | Ajuste implementado; revisión visual manual pendiente |
-| Superficies | Cabecera, pestañas, historial y entrada delimitados por texto | Sin dependencias visuales adicionales |
-| Animación | Sin animación personalizada; solo cursor estándar | No aplica reproducción a 10% |
-| Iconos | Estados de conexión/ACK escritos y selección entre corchetes | No dependen de color ni iconos |
-| Rendimiento | Máximo 500 mensajes y página de 100 | Memoria de historial acotada; aún sin perfil de rendimiento bajo carga |
+| Typography | `ansi.Wrap/Truncate` and terminal width | Wrapping implemented; manual visual review pending |
+| Surfaces | Text-separated header, tabs, history and input | No extra visual dependencies |
+| Animation | Only the standard cursor | No custom 10%-speed playback review applies |
+| Icons | Written connection/ACK state and bracketed selection | Status does not depend only on color/icons |
+| Performance | 500 displayed messages and 100 per page | Bounded history memory; load profiling pending |
 
-| Severidad | Ubicación | Antes | Después | Motivo |
+| Severity | Location | Before | After | Reason |
 | --- | --- | --- | --- | --- |
-| Media | pkg/tui/model.go, envío y recarga | Recargar podía descartar el ID pendiente | La recarga espera confirmar o cancelar el envío | Evita reintentos ambiguos |
-| Media | pkg/tui/model.go, entrada | Entrada fuera del límite no daba explicación | Muestra el máximo de bytes y restricción de controles | Hace visible el siguiente paso |
+| Medium | `pkg/tui/model.go`, send/reload | Reload could discard a pending ID | Reload waits for confirmation/cancellation | Prevent ambiguous retries |
+| Medium | `pkg/tui/model.go`, input | Out-of-limit input lacked explanation | Byte/control-character limit shown | Make the next action visible |
 
-Candidatos descartados: colores o efectos para conexión (texto funciona en terminales diversos); animación en mensajes frecuentes (añade distracción); nuevos estilos de componentes (los componentes Bubbles existentes bastan para la primera prueba).
+Color effects for connection, frequent message animation and a new component style system were rejected as unnecessary for the first trial; text works across terminals and existing Bubbles components cover the flow.
 
-Verificación ejecutada: PTY SSH real abre la misma TUI y renderiza cabecera y mensajes persistidos; pruebas de transporte validan secuencias de control. No verificado visualmente: lectores de pantalla, zoom, terminal de 12 columnas y terminales nativos de las tres plataformas. La revisión manual de accesibilidad sigue pendiente y se documenta como límite de la alpha experimental. La prueba funcional del sprint cubre el flujo principal del prototipo; el ensayo E2EE nativo posterior está registrado en verification.md.
+A real SSH PTY rendered the prototype header and persisted messages; transport tests check control sequences. Screen readers, zoom, 12-column terminals and visual behavior across all native terminals remain unreviewed. These are documented alpha limitations. The later native E2EE trial is recorded in [verification](verification.md).

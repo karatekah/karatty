@@ -38,7 +38,7 @@ try {
     $notices.Add("- Go standard library: licenses/$id/")
     $modules = @(& $GoExe list -deps -f '{{if .Module}}{{.Module.Path}}|{{.Module.Version}}|{{.Module.Dir}}{{end}}' ./cmd/termlink)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot list Go client dependencies' }
-    foreach ($module in ($modules | Where-Object { $_ -and $_ -notmatch '^github.com/karatekah/termlink\|' } | Sort-Object -Unique)) {
+    foreach ($module in ($modules | Where-Object { $_ -and $_ -notmatch '^github.com/karatekah/karatty\|' } | Sort-Object -Unique)) {
         $parts = $module -split '\|'
         $id = Copy-LicenseFiles "go-$($parts[0])-$($parts[1])" $parts[2]
         $notices.Add("- $($parts[0]) $($parts[1]): licenses/$id/")

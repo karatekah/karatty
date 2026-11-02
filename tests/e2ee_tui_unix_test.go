@@ -19,7 +19,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
-	"github.com/karatekah/termlink/internal/security"
+	"github.com/karatekah/karatty/internal/security"
 	"golang.org/x/crypto/ssh"
 )
 
