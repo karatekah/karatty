@@ -298,6 +298,30 @@ func olderDevices(root, current, server, uid string, passphrase []byte) ([]*loca
 	return stores, states, nil
 }
 
+// RemoveLocal deletes this account's files in the configured application root.
+func RemoveLocal(root, server, uid string) error {
+	if !filepath.IsAbs(root) {
+		return security.ErrInvalid
+	}
+	dirs, err := filepath.Glob(filepath.Join(root, "device-*"))
+	if err != nil {
+		return err
+	}
+	for _, dir := range append(dirs, root) {
+		info, statErr := os.Lstat(dir)
+		if errors.Is(statErr, os.ErrNotExist) {
+			continue
+		}
+		if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return errors.New("invalid local device path")
+		}
+		if err = localstate.RemoveAccount(dir, server, uid); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Client) UncertainCount() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()

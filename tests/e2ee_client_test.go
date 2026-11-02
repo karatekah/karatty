@@ -296,4 +296,17 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	if _, err = closedBackend.Send(f.ctx, direct.ID, protocol.Send{ClientID: "closed", Body: "blocked"}); err == nil {
 		t.Fatal("closed chat allowed a send")
 	}
+	if err = recoveredHTTP.DeleteAccount(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = recoveredBob.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err = secureclient.RemoveLocal(bobDir, recoveredHTTP.Base, bobLogin.UserID); err != nil {
+		t.Fatal(err)
+	}
+	files, err = filepath.Glob(filepath.Join(bobDir, "device-*", "state-*.json"))
+	if err != nil || len(files) != 0 {
+		t.Fatal("deleted account retained an encrypted local state file", err)
+	}
 }
