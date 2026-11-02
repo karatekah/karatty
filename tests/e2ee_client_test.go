@@ -122,9 +122,22 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	if err == nil {
 		t.Fatal("accepted a mismatched send acknowledgement")
 	}
+	if err = alice.Close(); err != nil {
+		t.Fatal(err)
+	}
+	alice, err = secureclient.Open(f.ctx, aliceHTTP, aliceKey, aliceLogin.UserID, passphrase, aliceDir, bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pending := alice.Pending(); len(pending) != 1 || pending[0].ClientID != "first" || pending[0].Body != "secreto de Alice" {
+		t.Fatal("pending envelope could not be recovered after restart")
+	}
 	first, err := alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "first", Body: "secreto de Alice"})
 	if err != nil || first.Body != "secreto de Alice" {
 		t.Fatal("first send failed", err)
+	}
+	if len(alice.Pending()) != 0 {
+		t.Fatal("confirmed retry remained pending")
 	}
 	raw, err := bobHTTP.History(f.ctx, direct.ID, 0, 100)
 	if err != nil || len(raw.Messages) != 1 || !security.Envelope(raw.Messages[0].Body) || strings.Contains(raw.Messages[0].Body, "secreto de Alice") {

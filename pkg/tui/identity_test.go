@@ -6,12 +6,46 @@ import (
 	"testing"
 
 	"github.com/karatekah/termlink/pkg/client"
+	"github.com/karatekah/termlink/pkg/protocol"
 )
 
 type identityFixture struct{ client.Backend }
 
 func (identityFixture) Fingerprint(context.Context, string) (string, error) {
 	return strings.Repeat("b", 64), nil
+}
+
+type retryFixture struct {
+	client.Backend
+	got protocol.Send
+}
+
+func (*retryFixture) Pending(string) []protocol.Send {
+	return []protocol.Send{{ClientID: "stable", Body: "guardado"}}
+}
+func (f *retryFixture) Send(_ context.Context, _ string, in protocol.Send) (protocol.Message, error) {
+	f.got = in
+	return protocol.Message{ClientID: in.ClientID, Body: in.Body}, nil
+}
+
+func TestTUIReopensStoredPendingSendWithSameID(t *testing.T) {
+	f := &retryFixture{}
+	m := New(context.Background(), f)
+	m.rooms = []protocol.Conversation{{ID: "direct", Kind: "direct"}}
+	m.input.SetValue("/pending")
+	m.directCommand()
+	if !strings.Contains(m.identityView, "stable") || !strings.Contains(m.identityView, "guardado") {
+		t.Fatal("stored pending message was not available to the user")
+	}
+	m.input.SetValue("/retry stable")
+	cmd := m.directCommand()
+	if cmd == nil {
+		t.Fatal("stored pending send was not retried")
+	}
+	cmd()
+	if f.got.ClientID != "stable" || f.got.Body != "guardado" {
+		t.Fatal("retry changed the stored message identity or body")
+	}
 }
 func (identityFixture) Verify(context.Context, string, string) error        { return nil }
 func (identityFixture) SelfFingerprint() string                             { return strings.Repeat("a", 64) }
