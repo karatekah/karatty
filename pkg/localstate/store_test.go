@@ -58,3 +58,27 @@ func TestEncryptedStateLockAndTamper(t *testing.T) {
 		t.Fatal("tampered state opened")
 	}
 }
+
+func TestMaximumStateCanBeReopened(t *testing.T) {
+	root := t.TempDir()
+	pass := []byte("maximum state passphrase")
+	state, _, err := Open(root, "https://example.dev", "large", pass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bytes.Repeat([]byte("a"), maxPlaintext)
+	if err = state.Save(want); err != nil {
+		t.Fatal(err)
+	}
+	if err = state.Close(); err != nil {
+		t.Fatal(err)
+	}
+	state, got, err := Open(root, "https://example.dev", "large", pass)
+	if err != nil {
+		t.Fatal("maximum saved state could not be reopened", err)
+	}
+	defer state.Close()
+	if !bytes.Equal(got, want) {
+		t.Fatal("maximum state changed")
+	}
+}

@@ -1,10 +1,12 @@
 package tests
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +20,28 @@ import (
 )
 
 type rejectMessagePost struct{ next http.RoundTripper }
+
+type alterSendAck struct{ next http.RoundTripper }
+
+func (r alterSendAck) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := r.next.RoundTrip(request)
+	if err != nil || request.Method != http.MethodPost || !strings.HasSuffix(request.URL.Path, "/messages") {
+		return response, err
+	}
+	defer response.Body.Close()
+	var message protocol.Message
+	if err = json.NewDecoder(response.Body).Decode(&message); err != nil {
+		return nil, err
+	}
+	message.ConversationID = "wrong-conversation"
+	data, err := json.Marshal(message)
+	if err != nil {
+		return nil, err
+	}
+	response.Body = io.NopCloser(bytes.NewReader(data))
+	response.ContentLength = int64(len(data))
+	return response, nil
+}
 
 func (r rejectMessagePost) RoundTrip(request *http.Request) (*http.Response, error) {
 	if request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/messages") {
@@ -90,6 +114,13 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	}
 	if err = bob.Verify(f.ctx, "alice", aliceFingerprint); err != nil {
 		t.Fatal(err)
+	}
+	ackTransport := aliceHTTP.Transport.Transport
+	aliceHTTP.Transport.Transport = alterSendAck{next: ackTransport}
+	_, err = alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "first", Body: "secreto de Alice"})
+	aliceHTTP.Transport.Transport = ackTransport
+	if err == nil {
+		t.Fatal("accepted a mismatched send acknowledgement")
 	}
 	first, err := alice.Send(f.ctx, direct.ID, "bob", protocol.Send{ClientID: "first", Body: "secreto de Alice"})
 	if err != nil || first.Body != "secreto de Alice" {
@@ -253,5 +284,16 @@ func TestE2EEClientExchangeAndLocalPassphrase(t *testing.T) {
 	oldAndNew, err := alice.Sync(f.ctx, direct.ID, "bob")
 	if err != nil || len(oldAndNew.Messages) != 4 || oldAndNew.Messages[2].Body != "[mensaje anterior al cambio de identidad; no disponible]" {
 		t.Fatal("old unread ciphertext was not marked unavailable after rotation", err)
+	}
+	if err = recoveredHTTP.BlockDirect(f.ctx, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	closedBackend := &secureclient.Backend{HTTP: recoveredHTTP, Secure: recoveredBob}
+	closedHistory, err := closedBackend.History(f.ctx, direct.ID, 0, 100)
+	if err != nil || len(closedHistory.Messages) != 5 {
+		t.Fatal("closed chat lost its authorized local history", err)
+	}
+	if _, err = closedBackend.Send(f.ctx, direct.ID, protocol.Send{ClientID: "closed", Body: "blocked"}); err == nil {
+		t.Fatal("closed chat allowed a send")
 	}
 }

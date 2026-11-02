@@ -17,7 +17,9 @@ import (
 )
 
 const maxPlaintext = 16 << 20
-const maxFile = maxPlaintext + (1 << 20)
+
+// JSON stores the ciphertext in base64, plus a small fixed envelope.
+const maxFile = ((maxPlaintext+chacha20poly1305.Overhead+2)/3)*4 + 1024
 
 type envelope struct {
 	Version    int    `json:"version"`

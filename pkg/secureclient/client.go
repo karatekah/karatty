@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -631,6 +632,9 @@ func (c *Client) Send(ctx context.Context, conv, username string, in protocol.Se
 	if err != nil {
 		return result, err
 	}
+	if !validMessage(result, conv) || result.ClientID != in.ClientID || result.SenderID != c.state.UserID || result.Body != pending.Envelope {
+		return protocol.Message{}, errors.New("invalid encrypted send acknowledgement")
+	}
 	next, err := c.copy()
 	if err != nil {
 		return result, err
@@ -644,12 +648,22 @@ func (c *Client) Send(ctx context.Context, conv, username string, in protocol.Se
 	return result, nil
 }
 func appendArchive(state *disk, message protocol.Message) {
+	if now := time.Now(); message.CreatedAt.After(now) {
+		message.CreatedAt = now
+	}
 	for _, old := range state.Archive[message.ConversationID] {
 		if old.ID == message.ID {
 			return
 		}
 	}
 	state.Archive[message.ConversationID] = append(state.Archive[message.ConversationID], message)
+	sort.Slice(state.Archive[message.ConversationID], func(i, j int) bool {
+		return state.Archive[message.ConversationID][i].Seq < state.Archive[message.ConversationID][j].Seq
+	})
+}
+
+func validMessage(message protocol.Message, conv string) bool {
+	return message.ConversationID == conv && security.Identifier(message.ID) && security.Identifier(message.ClientID) && security.Identifier(message.SenderID) && message.Seq > 0 && !message.CreatedAt.IsZero()
 }
 
 // Sync decrypts new server messages and persists ratchet, archive and cursor
@@ -667,6 +681,9 @@ func (c *Client) Sync(ctx context.Context, conv, username string) (protocol.Page
 		return page, err
 	}
 	for _, message := range remote.Messages {
+		if !validMessage(message, conv) {
+			return page, errors.New("invalid encrypted message metadata")
+		}
 		if message.Seq <= c.state.Cursor[conv] {
 			continue
 		}
@@ -676,6 +693,9 @@ func (c *Client) Sync(ctx context.Context, conv, username string) (protocol.Page
 		}
 		if message.SenderID == next.UserID {
 			if pending, ok := next.Outbox[conv+"/"+message.ClientID]; ok {
+				if message.Body != pending.Envelope {
+					return page, errors.New("pending encrypted envelope mismatch")
+				}
 				message.Body = pending.Body
 				delete(next.Outbox, conv+"/"+message.ClientID)
 			} else {
@@ -764,7 +784,15 @@ func (c *Client) Sync(ctx context.Context, conv, username string) (protocol.Page
 func (c *Client) Archive(conv string) []protocol.Message {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return append([]protocol.Message(nil), c.state.Archive[conv]...)
+	cutoff := time.Now().Add(-720 * time.Hour)
+	var out []protocol.Message
+	for _, message := range c.state.Archive[conv] {
+		if message.CreatedAt.After(cutoff) {
+			out = append(out, message)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Seq < out[j].Seq })
+	return out
 }
 
 func (c *Client) Cursor(conv string) int64 {

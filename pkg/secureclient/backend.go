@@ -21,17 +21,17 @@ func (b *Backend) List(ctx context.Context) ([]protocol.Conversation, error) {
 	return b.HTTP.List(ctx)
 }
 
-func (b *Backend) peer(ctx context.Context, conv string) (string, error) {
+func (b *Backend) peer(ctx context.Context, conv string) (string, bool, error) {
 	rooms, err := b.HTTP.List(ctx)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	for _, room := range rooms {
 		if room.ID == conv && room.Kind == "direct" {
-			return room.Name, nil
+			return room.Name, room.Closed, nil
 		}
 	}
-	return "", errors.New("direct conversation unavailable")
+	return "", false, errors.New("direct conversation unavailable")
 }
 
 func (b *Backend) syncAll(ctx context.Context, conv, peer string) error {
@@ -51,12 +51,14 @@ func (b *Backend) History(ctx context.Context, conv string, after int64, limit i
 	if after < 0 || limit < 1 || limit > 100 {
 		return page, errors.New("invalid history page")
 	}
-	peer, err := b.peer(ctx, conv)
+	peer, closed, err := b.peer(ctx, conv)
 	if err != nil {
 		return page, err
 	}
-	if err = b.syncAll(ctx, conv, peer); err != nil {
-		return page, err
+	if !closed {
+		if err = b.syncAll(ctx, conv, peer); err != nil {
+			return page, err
+		}
 	}
 	for _, message := range b.Secure.Archive(conv) {
 		if message.Seq > after {
@@ -71,9 +73,12 @@ func (b *Backend) History(ctx context.Context, conv string, after int64, limit i
 }
 
 func (b *Backend) Send(ctx context.Context, conv string, in protocol.Send) (protocol.Message, error) {
-	peer, err := b.peer(ctx, conv)
+	peer, closed, err := b.peer(ctx, conv)
 	if err != nil {
 		return protocol.Message{}, err
+	}
+	if closed {
+		return protocol.Message{}, errors.New("direct conversation is closed")
 	}
 	return b.Secure.Send(ctx, conv, peer, in)
 }
@@ -140,14 +145,16 @@ func (b *Backend) Stream(ctx context.Context, conv string, after int64) <-chan c
 	out := make(chan client.Event, 1)
 	go func() {
 		defer close(out)
-		peer, err := b.peer(ctx, conv)
+		peer, closed, err := b.peer(ctx, conv)
 		if err != nil {
 			sendEvent(ctx, out, client.Event{Err: err, Fatal: true})
 			return
 		}
-		if err = b.syncAll(ctx, conv, peer); err != nil {
-			sendEvent(ctx, out, client.Event{Err: err, Fatal: true})
-			return
+		if !closed {
+			if err = b.syncAll(ctx, conv, peer); err != nil {
+				sendEvent(ctx, out, client.Event{Err: err, Fatal: true})
+				return
+			}
 		}
 		page := protocol.Page{Messages: []protocol.Message{}, Next: after}
 		for _, message := range b.Secure.Archive(conv) {
@@ -160,6 +167,10 @@ func (b *Backend) Stream(ctx context.Context, conv string, after int64) <-chan c
 			return
 		}
 		after = page.Next
+		if closed {
+			<-ctx.Done()
+			return
+		}
 		for event := range b.HTTP.Stream(ctx, conv, b.Secure.Cursor(conv)) {
 			if event.Err != nil {
 				if !sendEvent(ctx, out, event) || event.Fatal {
