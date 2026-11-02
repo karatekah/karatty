@@ -2,7 +2,7 @@
 
 Mensajería desde tu terminal: directos 1:1 con aceptación, identidad seudónima mediante clave SSH y cifrado de extremo a extremo en una TUI local.
 
-**v0.1.0-alpha.1 está en preparación.** El repositorio sigue privado, no hay servicio público ni descarga publicada. El dominio elegido es `karatty.dev`; faltan su compra, el VPS y el contacto público del operador. El código, los paquetes y la documentación se publicarán juntos cuando se compruebe el despliegue.
+**v0.1.0-alpha.1 está en preparación para uso local y en red local (LAN).** El repositorio sigue privado y las descargas están en borrador. No necesitas dominio, VPS ni correo: una máquina ejecuta el servidor y PostgreSQL, y cada participante instala el cliente. El alojamiento en Internet con `karatty.dev` queda para el futuro.
 
 ## Qué incluye la candidata
 
@@ -15,7 +15,7 @@ Mensajería desde tu terminal: directos 1:1 con aceptación, identidad seudónim
 
 ## Probar y usar
 
-Para ensayar ahora, sigue el [entorno local](docs/quickstart.md), que incluye PostgreSQL, certificados de desarrollo y dos cuentas de prueba. La [guía de instalación y primer uso](docs/install.md) explica la descarga prevista, las claves, las huellas, los reintentos y la recuperación.
+Para ensayar ahora, sigue la [guía local y LAN](docs/quickstart.md): compilar, iniciar PostgreSQL y el servidor con TLS, y conversar con dos cuentas. La [guía de instalación y primer uso](docs/install.md) explica los paquetes, claves, huellas, reintentos y recuperación. La [matriz de verificación](docs/verification.md) distingue las pruebas automatizadas de las realizadas en equipos físicos.
 
 El flujo dentro de la TUI es:
 
@@ -33,7 +33,7 @@ Después pueden escribir mensajes. Tab cambia de chat, Ctrl+L recarga y Ctrl+C s
 
 ## Seguridad y límites
 
-La alpha usa solo la TUI instalada localmente y directos 1:1. El prototipo anterior por invitaciones y la TUI remota por SSH siguen en el código para desarrollo, envían texto legible al servidor y se excluyen del despliegue público.
+La alpha usa solo la TUI instalada localmente y directos 1:1. El prototipo anterior por invitaciones y la TUI remota por SSH siguen en el código para desarrollo, envían texto legible al servidor y se excluyen de la alpha.
 
 El secreto futuro protege mensajes cuyas claves ya se consumieron y borraron del ratchet. No protege un archivo local desbloqueado, una copia antigua del estado o un equipo comprometido. La verificación de huellas por otro medio es necesaria frente a sustituciones de identidad en el primer contacto. El servidor conoce los metadatos de entrega; un seudónimo no garantiza anonimato absoluto.
 
@@ -61,9 +61,9 @@ La [arquitectura](docs/architecture.md) describe paquetes y flujos. El [ADR de E
 | Ejecutar y desarrollar localmente | [Entorno local](docs/quickstart.md) · [Contribuir](CONTRIBUTING.md) |
 | Entender el sistema | [Arquitectura](docs/architecture.md) · [Protocolo](docs/protocol.md) · [Dependencias](docs/dependencies.md) |
 | Revisar seguridad | [Garantías y límites](docs/security.md) · [Pruebas](docs/verification.md) · [Reportes privados](SECURITY.md) |
-| Operar y respaldar | [Despliegue](docs/deploy.md) · [Operación](docs/operations.md) |
+| Alojar en Internet en el futuro | [Despliegue previsto](docs/deploy.md) · [Operación y respaldos](docs/operations.md) |
 | Revisar la publicación | [Release](docs/release.md) · [Cambios](CHANGELOG.md) · [Roadmap](docs/roadmap.md) |
-| Datos y condiciones del servicio | [Privacidad](docs/privacy-draft.md) · [Condiciones](docs/terms-draft.md), borradores pendientes de datos del operador |
+| Borradores para un futuro servicio alojado | [Privacidad](docs/privacy-draft.md) · [Condiciones](docs/terms-draft.md), pendientes de datos del operador |
 
 ## Desarrollo
 
