@@ -2,7 +2,7 @@
 
 [English](../interface-check.md) · **Español** · [Italiano](../it/interface-check.md)
 
-Aplicación de `make-interfaces-feel-better`, alcance: TUI compartida Bubble Tea v2/Bubbles v2. Estilo: texto monoespaciado, separadores y estados escritos; sin sistema CSS ni animaciones propias. No es una revisión visual de Windows Terminal/macOS/Linux completa.
+Alcance de la revisión: TUI compartida Bubble Tea v2/Bubbles v2. Estilo: texto monoespaciado, separadores y estados escritos; sin sistema CSS ni animaciones propias. No es una revisión visual de Windows Terminal/macOS/Linux completa.
 
 | Categoría | Evidencia inspeccionada | Resultado |
 | --- | --- | --- |

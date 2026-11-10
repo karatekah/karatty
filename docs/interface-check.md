@@ -2,7 +2,7 @@
 
 **English** · [Español](es/interface-check.md) · [Italiano](it/interface-check.md)
 
-The initial review used `make-interfaces-feel-better` for the shared Bubble Tea v2/Bubbles v2 TUI: monospaced text, separators and written status, without CSS or custom animation. It is not a complete visual/accessibility review of Windows/macOS/Linux terminals.
+The initial review covered the shared Bubble Tea v2/Bubbles v2 TUI: monospaced text, separators and written status, without CSS or custom animation. It is not a complete visual/accessibility review of Windows/macOS/Linux terminals.
 
 | Category | Evidence | Result |
 | --- | --- | --- |

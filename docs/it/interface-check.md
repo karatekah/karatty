@@ -2,7 +2,7 @@
 
 [English](../interface-check.md) · [Español](../es/interface-check.md) · **Italiano**
 
-La revisione iniziale usava `make-interfaces-feel-better` per la TUI Bubble Tea v2/Bubbles v2 condivisa: testo monospaziato, separatori e stati scritti, senza CSS o animazioni proprie. Non è una revisione completa visiva/accessibile dei terminali Windows/macOS/Linux.
+La revisione iniziale copriva la TUI Bubble Tea v2/Bubbles v2 condivisa: testo monospaziato, separatori e stati scritti, senza CSS o animazioni proprie. Non è una revisione completa visiva/accessibile dei terminali Windows/macOS/Linux.
 
 | Categoria | Evidenza | Risultato |
 | --- | --- | --- |
