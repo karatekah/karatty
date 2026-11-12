@@ -6,7 +6,7 @@ Esta guía describe cómo reproducir el entorno de la alpha experimental y propo
 
 ## Preparar el entorno
 
-Usa Go 1.27.3, Rust 1.99.1 y PostgreSQL 17.11. La [guía local](../quickstart.md) muestra cómo iniciar PostgreSQL con Docker, generar certificados de desarrollo y ejecutar el cliente. Las pruebas de integración requieren `TERMLINK_TEST_DATABASE_URL` apuntando a una **base de desarrollo** con permiso para crear esquemas. `KARATTY_CRYPTO_BIN` debe apuntar al puente compilado para ejecutar la integración E2EE. Nunca apuntes las pruebas a producción.
+Usa Go 1.27.4, Rust 1.99.1 y PostgreSQL 17.11. La [guía local](../quickstart.md) muestra cómo iniciar PostgreSQL con Docker, generar certificados de desarrollo y ejecutar el cliente. Las pruebas de integración requieren `TERMLINK_TEST_DATABASE_URL` apuntando a una **base de desarrollo** con permiso para crear esquemas. `KARATTY_CRYPTO_BIN` debe apuntar al puente compilado para ejecutar la integración E2EE. Nunca apuntes las pruebas a producción.
 
 ```sh
 go mod verify

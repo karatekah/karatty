@@ -32,7 +32,7 @@ DATABASE_URL=postgres://karatty:CONTRASENA_CODIFICADA@127.0.0.1:5432/karatty?ssl
 
 ## Binario y TLS
 
-Desde el commit candidato con CI verde, usar Go 1.27.3 para construir `go build -trimpath -o bin/karatty-server ./cmd/server`. Instalar el binario y la unidad incluidos en este repositorio:
+Desde el commit candidato con CI verde, usar Go 1.27.4 para construir `go build -trimpath -o bin/karatty-server ./cmd/server`. Instalar el binario y la unidad incluidos en este repositorio:
 
 ```sh
 sudo install -m 0755 bin/karatty-server /opt/karatty/server

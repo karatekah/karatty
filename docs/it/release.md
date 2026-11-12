@@ -32,7 +32,7 @@ Prima di dichiarare LAN verificata serve la prova fra macchine. Dominio, VPS, ca
 
 ## Compilare i pacchetti client
 
-Sulla piattaforma destinazione con PowerShell, Go 1.27.3, Rust 1.99.1:
+Sulla piattaforma destinazione con PowerShell, Go 1.27.4, Rust 1.99.1:
 
 ```powershell
 ./scripts/build-release.ps1 -Version v0.1.0-alpha.1

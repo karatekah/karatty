@@ -51,7 +51,7 @@ Dopo la verifica, scrivi normalmente. Tab cambia chat, Ctrl+L ricarica, Ctrl+C e
 
 | Componente | Tecnologia |
 | --- | --- |
-| Client e API | Go 1.27.3, monolite modulare e contratti JSON condivisi |
+| Client e API | Go 1.27.4, monolite modulare e contratti JSON condivisi |
 | Interfaccia terminale | Bubble Tea v2 e Bubbles v2 |
 | E2EE locale | Rust 1.99.1, vodozemac 0.11.1 e Olm v1 |
 | Archivio locale | Argon2id, XChaCha20-Poly1305, blocco e sostituzione del file |

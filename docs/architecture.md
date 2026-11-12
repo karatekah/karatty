@@ -25,7 +25,7 @@ The canonical module is `github.com/karatekah/karatty`. Historical v0.1.0-alpha.
 
 | Component | Technology and reason |
 | --- | --- |
-| Client/server | Go 1.27.3; one shared module, native Windows/Linux/macOS builds |
+| Client/server | Go 1.27.4; one shared module, native Windows/Linux/macOS builds |
 | Terminal UI | Bubble Tea v2 and Bubbles v2 |
 | Prototype gateway | Wish v2 over SSH; its process sees readable content |
 | API/events | JSON over HTTPS/WSS and short-lived Bearer sessions |

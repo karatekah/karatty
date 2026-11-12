@@ -6,7 +6,7 @@ Comprobadas para este sprint el 2026-10-31. Se fijan versiones exactas y hashes 
 
 | Herramienta | Versión usada | Fuente oficial |
 | --- | --- | --- |
-| Go portable Windows | 1.27.3 | https://go.dev/dl/ |
+| Go portable Windows | 1.27.4 | https://go.dev/dl/ |
 | Bubble Tea | v2.1.1 | https://pkg.go.dev/charm.land/bubbletea/v2@v2.1.1 |
 | Bubbles | v2.2.1 | https://pkg.go.dev/charm.land/bubbles/v2@v2.2.1 |
 | Wish | v2.0.5 | https://pkg.go.dev/charm.land/wish/v2@v2.0.5 |

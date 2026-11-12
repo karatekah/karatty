@@ -32,7 +32,7 @@ El ensayo entre dos equipos físicos será necesario antes de declarar validada 
 
 ## Construir paquetes del cliente
 
-Desde PowerShell, con Go 1.27.3 y Rust 1.99.1 en la plataforma de destino:
+Desde PowerShell, con Go 1.27.4 y Rust 1.99.1 en la plataforma de destino:
 
 ```powershell
 ./scripts/build-release.ps1 -Version v0.1.0-alpha.1

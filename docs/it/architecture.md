@@ -25,7 +25,7 @@ Il modulo canonico è `github.com/karatekah/karatty`. Il sorgente storico v0.1.0
 
 | Componente | Tecnologia e motivazione |
 | --- | --- |
-| Client/server | Go 1.27.3; modulo condiviso, build native Windows/Linux/macOS |
+| Client/server | Go 1.27.4; modulo condiviso, build native Windows/Linux/macOS |
 | Terminale | Bubble Tea v2 e Bubbles v2 |
 | Gateway del prototipo | Wish v2 su SSH; il processo vede contenuti leggibili |
 | API/eventi | JSON su HTTPS/WSS, sessioni Bearer temporanee |

@@ -23,7 +23,7 @@ El proceso `cmd/server` ofrece la API y, opcionalmente, el gateway SSH. `cmd/ssh
 
 | Componente | Tecnología y motivo |
 | --- | --- |
-| Cliente y servidor | Go 1.27.3; un módulo compartido y compilación nativa para Windows, Linux y macOS. |
+| Cliente y servidor | Go 1.27.4; un módulo compartido y compilación nativa para Windows, Linux y macOS. |
 | Interfaz terminal | Bubble Tea v2 y Bubbles v2 para la TUI local. |
 | Gateway de prototipo | Wish v2 sobre SSH; permite una TUI remota, pero su proceso ve el contenido en claro. |
 | API y eventos | JSON sobre HTTPS y WebSocket seguro; sesiones Bearer de duración limitada. |

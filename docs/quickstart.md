@@ -8,7 +8,7 @@ Use `--public-signup`: pseudonymous email-free registration, 1:1 chats and E2EE 
 
 ## 1. Build or install
 
-Building requires Go 1.27.3, Rust 1.99.1 and OpenSSH. Only the server needs PostgreSQL 17.11, native or Docker. Clients may use both executables from a [verified package](install.md) without installing Go, Rust or PostgreSQL. Client packages exclude the server.
+Building requires Go 1.27.4, Rust 1.99.1 and OpenSSH. Only the server needs PostgreSQL 17.11, native or Docker. Clients may use both executables from a [verified package](install.md) without installing Go, Rust or PostgreSQL. Client packages exclude the server.
 
 Clone with `git clone https://github.com/karatekah/karatty.git` and enter `cd karatty`. Alternatively download tagged source from the Release. The current module is `github.com/karatekah/karatty`; historical alpha.1 source retains its old module name but builds locally from its own consistent source.
 

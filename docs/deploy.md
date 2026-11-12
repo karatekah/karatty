@@ -32,7 +32,7 @@ DATABASE_URL=postgres://karatty:URL_ENCODED_PASSWORD@127.0.0.1:5432/karatty?sslm
 
 ## Binary and TLS
 
-From a CI-verified commit with Go 1.27.3, build `go build -trimpath -o bin/karatty-server ./cmd/server`. Install it and the supplied unit/hook:
+From a CI-verified commit with Go 1.27.4, build `go build -trimpath -o bin/karatty-server ./cmd/server`. Install it and the supplied unit/hook:
 
 ```sh
 sudo install -m 0755 bin/karatty-server /opt/karatty/server

@@ -32,7 +32,7 @@ LAN validation requires a two-machine trial before claiming that support verifie
 
 ## Build client packages
 
-On the target platform with PowerShell, Go 1.27.3 and Rust 1.99.1:
+On the target platform with PowerShell, Go 1.27.4 and Rust 1.99.1:
 
 ```powershell
 ./scripts/build-release.ps1 -Version v0.1.0-alpha.1

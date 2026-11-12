@@ -6,7 +6,7 @@ Questa guida spiega come riprodurre l'ambiente dell'alpha sperimentale e proporr
 
 ## Preparazione
 
-Usa Go 1.27.3, Rust 1.99.1 e PostgreSQL 17.11. La [guida locale](../quickstart.md) copre database, certificati di sviluppo e client. I test richiedono `TERMLINK_TEST_DATABASE_URL` verso una **base di sviluppo** con permesso di creare schemi e `KARATTY_CRYPTO_BIN` verso il bridge per le prove E2EE. Non usare produzione.
+Usa Go 1.27.4, Rust 1.99.1 e PostgreSQL 17.11. La [guida locale](../quickstart.md) copre database, certificati di sviluppo e client. I test richiedono `TERMLINK_TEST_DATABASE_URL` verso una **base di sviluppo** con permesso di creare schemi e `KARATTY_CRYPTO_BIN` verso il bridge per le prove E2EE. Non usare produzione.
 
 ```sh
 go mod verify

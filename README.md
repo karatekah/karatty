@@ -51,7 +51,7 @@ After verification, type messages normally. Tab switches chats, Ctrl+L reloads a
 
 | Component | Technology |
 | --- | --- |
-| Client and API | Go 1.27.3, modular monolith and shared JSON contracts |
+| Client and API | Go 1.27.4, modular monolith and shared JSON contracts |
 | Terminal UI | Bubble Tea v2 and Bubbles v2 |
 | Local E2EE | Rust 1.99.1, vodozemac 0.11.1 and Olm v1 |
 | Local archive | Argon2id and XChaCha20-Poly1305, file locking and replacement |

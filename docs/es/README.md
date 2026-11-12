@@ -51,7 +51,7 @@ Después pueden escribir mensajes. Tab cambia de chat, Ctrl+L recarga y Ctrl+C s
 
 | Parte | Tecnología |
 | --- | --- |
-| Cliente y API | Go 1.27.3, monolito modular y contratos JSON compartidos |
+| Cliente y API | Go 1.27.4, monolito modular y contratos JSON compartidos |
 | Interfaz | Bubble Tea v2 y Bubbles v2 |
 | E2EE local | Rust 1.99.1, vodozemac 0.11.1 y Olm v1 |
 | Archivo local | Argon2id y XChaCha20-Poly1305, bloqueo y reemplazo de archivo |

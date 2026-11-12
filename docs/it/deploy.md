@@ -32,7 +32,7 @@ DATABASE_URL=postgres://karatty:PASSWORD_CODIFICATA@127.0.0.1:5432/karatty?sslmo
 
 ## Binario e TLS
 
-Da commit con CI verde e Go 1.27.3: `go build -trimpath -o bin/karatty-server ./cmd/server`. Installa binario, unità e hook:
+Da commit con CI verde e Go 1.27.4: `go build -trimpath -o bin/karatty-server ./cmd/server`. Installa binario, unità e hook:
 
 ```sh
 sudo install -m 0755 bin/karatty-server /opt/karatty/server

@@ -10,8 +10,8 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $goVersion = (& $GoExe version).Trim()
 $rustVersion = (& $RustcExe --version).Trim()
-if ($goVersion -notmatch '^go version go1\.27\.3 ' -or $rustVersion -notmatch '^rustc 1\.99\.1 ') {
-    throw 'Release builds require Go 1.27.3 and Rust 1.99.1'
+if ($goVersion -notmatch '^go version go1\.27\.4 ' -or $rustVersion -notmatch '^rustc 1\.99\.1 ') {
+    throw 'Release builds require Go 1.27.4 and Rust 1.99.1'
 }
 $outputDir = Join-Path $repoRoot "dist/$Version"
 if (Test-Path -LiteralPath $outputDir) {

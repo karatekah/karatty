@@ -6,7 +6,7 @@ This guide explains how to reproduce the experimental alpha environment and prop
 
 ## Set up
 
-Use Go 1.27.3, Rust 1.99.1 and PostgreSQL 17.11. The [local guide](docs/quickstart.md) covers PostgreSQL, development certificates and clients. Integration tests need `TERMLINK_TEST_DATABASE_URL` pointing to a **development database** with permission to create schemas. Set `KARATTY_CRYPTO_BIN` to the compiled bridge for E2EE tests. Never target production.
+Use Go 1.27.4, Rust 1.99.1 and PostgreSQL 17.11. The [local guide](docs/quickstart.md) covers PostgreSQL, development certificates and clients. Integration tests need `TERMLINK_TEST_DATABASE_URL` pointing to a **development database** with permission to create schemas. Set `KARATTY_CRYPTO_BIN` to the compiled bridge for E2EE tests. Never target production.
 
 ```sh
 go mod verify

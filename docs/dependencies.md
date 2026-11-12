@@ -6,7 +6,7 @@ Versions were checked for the sprint on 2026-10-31. Exact module versions/hashes
 
 | Tool | Version used | Official source |
 | --- | --- | --- |
-| Portable Go for Windows | 1.27.3 | https://go.dev/dl/ |
+| Portable Go for Windows | 1.27.4 | https://go.dev/dl/ |
 | Bubble Tea | v2.1.1 | https://pkg.go.dev/charm.land/bubbletea/v2@v2.1.1 |
 | Bubbles | v2.2.1 | https://pkg.go.dev/charm.land/bubbles/v2@v2.2.1 |
 | Wish | v2.0.5 | https://pkg.go.dev/charm.land/wish/v2@v2.0.5 |
