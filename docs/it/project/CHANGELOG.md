@@ -2,6 +2,12 @@
 
 [English](../../../CHANGELOG.md) · [Español](../../es/project/CHANGELOG.md) · **Italiano**
 
+## Non pubblicato — aggiornamenti di sicurezza
+
+- Go 1.27.4 è richiesto nel modulo, CI, Docker e packaging per correggere GO-2026-6859.
+- Il bridge Olm usa vodozemac 0.11.2, con correzioni per azzeramento dei segreti in memoria e chiavi Ed25519 malformate.
+- I binari pubblicati di v0.1.0-alpha.1 mantengono le dipendenze originali. Le correzioni sono nel codice attuale e nei nuovi pacchetti CI.
+
 ## v0.1.0-alpha.1 — alpha sperimentale
 
 - TUI locale per chat dirette 1:1 con accettazione, rifiuto e blocco.

@@ -24,7 +24,7 @@ Run the **experimental alpha** on your own machine: one server with PostgreSQL, 
 
 - **SSH-key identity.** Registration without email or a real name, using proof of possession of an Ed25519 SSH key. Recovery uses a code stored outside the device.
 - **Consent first.** Direct chats requiring acceptance, incoming requests, rejection, blocking and closed conversations with read-only history.
-- **Local E2EE.** Olm 1:1 with Double Ratchet through vodozemac 0.11.1. Contacts must compare fingerprints through another trusted channel and verify again after an identity change.
+- **Local E2EE.** Olm 1:1 with Double Ratchet through vodozemac 0.11.2. Contacts must compare fingerprints through another trusted channel and verify again after an identity change.
 - **Encrypted archive.** A passphrase-encrypted local archive using Argon2id and XChaCha20-Poly1305. Pending sends are saved before transmission and survive restarts.
 - **Durable delivery.** Opaque envelopes in PostgreSQL, sequence-based history, reconnection and deduplication during the 30-day retention window.
 - **Data lifecycle.** Account and local-file deletion, expired-message purging, and tools for encrypted backups and restoration.
@@ -53,7 +53,7 @@ After verification, type messages normally. Tab switches chats, Ctrl+L reloads a
 | --- | --- |
 | Client and API | Go 1.27.4, modular monolith and shared JSON contracts |
 | Terminal UI | Bubble Tea v2 and Bubbles v2 |
-| Local E2EE | Rust 1.99.1, vodozemac 0.11.1 and Olm v1 |
+| Local E2EE | Rust 1.99.1, vodozemac 0.11.2 and Olm v1 |
 | Local archive | Argon2id and XChaCha20-Poly1305, file locking and replacement |
 | Transport | HTTPS and WSS; authorization on every operation |
 | Storage | PostgreSQL 17.11 and pgx, transactional sequences and ACKs |

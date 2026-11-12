@@ -24,7 +24,7 @@ Esegui l'**alpha sperimentale** sul tuo computer: un server con PostgreSQL e un 
 
 - **Identità SSH.** Registrazione senza email o nome reale, con prova del possesso di una chiave Ed25519. Recupero tramite codice conservato fuori dal dispositivo.
 - **Prima il consenso.** Chat dirette con accettazione, richieste in arrivo, rifiuto, blocco e conversazioni chiuse consultabili in sola lettura.
-- **E2EE locale.** Olm 1:1 con Double Ratchet tramite vodozemac 0.11.1. Le impronte vanno confrontate attraverso un altro canale fidato e verificate nuovamente dopo un cambio d'identità.
+- **E2EE locale.** Olm 1:1 con Double Ratchet tramite vodozemac 0.11.2. Le impronte vanno confrontate attraverso un altro canale fidato e verificate nuovamente dopo un cambio d'identità.
 - **Archivio cifrato.** Archivio locale cifrato con frase segreta, Argon2id e XChaCha20-Poly1305. Gli invii in attesa sono salvati prima della trasmissione e sopravvivono al riavvio.
 - **Consegna persistente.** Involucri opachi in PostgreSQL, cronologia per sequenza, riconnessione e deduplicazione nei 30 giorni di conservazione.
 - **Ciclo di vita dei dati.** Eliminazione dell'account e dei file locali, rimozione dei messaggi scaduti e strumenti di backup cifrato e ripristino.
@@ -53,7 +53,7 @@ Dopo la verifica, scrivi normalmente. Tab cambia chat, Ctrl+L ricarica, Ctrl+C e
 | --- | --- |
 | Client e API | Go 1.27.4, monolite modulare e contratti JSON condivisi |
 | Interfaccia terminale | Bubble Tea v2 e Bubbles v2 |
-| E2EE locale | Rust 1.99.1, vodozemac 0.11.1 e Olm v1 |
+| E2EE locale | Rust 1.99.1, vodozemac 0.11.2 e Olm v1 |
 | Archivio locale | Argon2id, XChaCha20-Poly1305, blocco e sostituzione del file |
 | Trasporto | HTTPS e WSS; autorizzazione per operazione |
 | Persistenza | PostgreSQL 17.11 e pgx, sequenze e ACK transazionali |

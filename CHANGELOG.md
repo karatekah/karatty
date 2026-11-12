@@ -2,6 +2,12 @@
 
 **English** · [Español](docs/es/project/CHANGELOG.md) · [Italiano](docs/it/project/CHANGELOG.md)
 
+## Unreleased — security updates
+
+- Require Go 1.27.4 in the module, CI, Docker and release tooling to address GO-2026-6859.
+- Update the Olm bridge to vodozemac 0.11.2, including its zeroization fixes and malformed Ed25519-key handling.
+- Published v0.1.0-alpha.1 binaries retain their original dependencies. These fixes are in current source and its newly built CI packages.
+
 ## v0.1.0-alpha.1 — experimental alpha
 
 - Local TUI for 1:1 direct chats with acceptance, rejection and blocking.

@@ -2,6 +2,12 @@
 
 [English](../../../CHANGELOG.md) · **Español** · [Italiano](../../it/project/CHANGELOG.md)
 
+## Sin publicar — actualizaciones de seguridad
+
+- Se requiere Go 1.27.4 en el módulo, CI, Docker y empaquetado para corregir GO-2026-6859.
+- El puente Olm usa vodozemac 0.11.2, con correcciones de borrado de secretos en memoria y claves Ed25519 malformadas.
+- Los binarios publicados de v0.1.0-alpha.1 conservan sus dependencias originales. Las correcciones están en el código actual y sus nuevos paquetes de CI.
+
 ## v0.1.0-alpha.1 — alpha experimental
 
 - TUI local para directos 1:1 con aceptación, rechazo y bloqueo.
